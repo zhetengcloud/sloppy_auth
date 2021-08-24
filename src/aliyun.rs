@@ -9,7 +9,7 @@ fn sign_base64(key_secret: &str, body: &str) -> String {
 
 pub mod oss {
     use super::sign_base64;
-    use crate::util::get_date;
+    use crate::util;
 
     pub struct Client {
         pub verb: String,
@@ -36,10 +36,10 @@ pub mod oss {
                 ..
             } = self;
 
-            let content_md5 = base64::encode(*md5::compute(&content));
+            let content_md5 = util::content_md5(&content);
             let date_str: String = match date {
                 Some(t) => t.to_owned(),
-                None => get_date(),
+                None => util::get_date(),
             };
 
             Body {

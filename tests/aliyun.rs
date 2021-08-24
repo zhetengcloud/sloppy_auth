@@ -12,7 +12,7 @@ fn putobject() {
     let url1 = "oss-cn-shanghai.aliyuncs.com";
     let mut buf: Vec<u8> = Vec::new();
     let mut easy = Easy::new();
-    let mut body1 = "test body".as_bytes();
+    let body1 = "test body";
 
     let bucket = "podcast40".to_string();
     let key = "test1.txt".to_string();
@@ -28,7 +28,7 @@ fn putobject() {
 
     let auth = aliyun::oss::Client {
         verb: "PUT".to_string(),
-        content: body1.to_vec(),
+        content: body1.as_bytes().to_vec(),
         oss_headers: [].to_vec(),
         bucket,
         content_type: "text/plain".to_string(),
@@ -49,9 +49,10 @@ fn putobject() {
     easy.http_headers(headers).unwrap();
 
     {
+        let mut body2 = body1.as_bytes();
         let mut transfer = easy.transfer();
         transfer
-            .read_function(|buf| Ok(body1.read(buf).unwrap_or(0)))
+            .read_function(|buf| Ok(body2.read(buf).unwrap_or(0)))
             .unwrap();
         transfer
             .write_function(|dt| {
