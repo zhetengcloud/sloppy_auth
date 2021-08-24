@@ -8,6 +8,56 @@ fn sign_base64(key_secret: &str, body: &str) -> String {
 }
 
 pub mod oss {
+    use super::sign_base64;
+    use chrono::prelude::Utc;
+    pub struct Client {
+        pub verb: String,
+        pub content: Vec<u8>,
+        pub content_type: String,
+        pub date: Option<String>,
+        pub oss_headers: Vec<String>,
+        pub bucket: String,
+        pub key: String,
+        pub key_id: String,
+        pub key_secret: String,
+    }
+
+    impl Client {
+        fn make_body(&self) -> Body {
+            let Client {
+                verb,
+                content,
+                content_type,
+                date,
+                oss_headers,
+                bucket,
+                key,
+                ..
+            } = self;
+
+            let content_md5 = base64::encode(*md5::compute(&content));
+            let date_str: String = match date {
+                Some(t) => t.to_owned(),
+                None => Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            };
+
+            Body {
+                verb: verb.to_owned(),
+                content_md5,
+                content_type: content_type.to_owned(),
+                date: date_str,
+                canonicalized_ossheaders: Headers(oss_headers.to_owned()).to_string(),
+                canonicalized_resource: format!("/{}/{}", bucket, key),
+            }
+        }
+
+        pub fn make_authorization(&self) -> String {
+            let body = self.make_body();
+            let sig: String = sign_base64(&self.key_secret, body.to_string().as_ref());
+            format!("OSS {}:{}", self.key_id, sig)
+        }
+    }
+
     pub struct Body {
         pub verb: String,
         pub content_md5: String,
@@ -52,10 +102,6 @@ pub mod oss {
                     acc
                 })
         }
-    }
-
-    fn concat_auth(key_id: &str, signature: &str) -> String {
-        format!("OSS {}:{}", key_id, signature)
     }
 
     #[cfg(test)]
