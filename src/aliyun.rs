@@ -31,8 +31,45 @@ pub mod oss {
         }
     }
 
+    // newtype of CanonicalizedOSSHeaders
+    struct Headers(Vec<String>);
+
+    impl ToString for Headers {
+        fn to_string(&self) -> String {
+            self.0
+                .iter()
+                .map(|x| x.to_lowercase())
+                .map(|x| x.replace(" ", ""))
+                .fold("".to_string(), |mut acc, x| {
+                    acc.push_str(&x);
+                    acc.push('\n');
+                    acc
+                })
+        }
+    }
+
     fn concat_auth(key_id: &str, signature: &str) -> String {
         format!("OSS {}:{}", key_id, signature)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn headers_test() {
+            let headers1 = Headers(
+                [
+                    "X-OSS-Meta-Name: TaoBao".to_string(),
+                    "X-OSS-Meta-a: meTAa".to_string(),
+                ]
+                .to_vec(),
+            );
+            let expect1 = "x-oss-meta-name:taobao\nx-oss-meta-a:metaa\n";
+            assert_eq!(headers1.to_string(), expect1);
+            let headers2 = Headers([].to_vec());
+            assert_eq!(headers2.to_string(), "");
+        }
     }
 }
 
