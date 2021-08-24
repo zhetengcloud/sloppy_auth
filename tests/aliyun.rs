@@ -19,14 +19,12 @@ fn putobject() {
     let host = format!("{}.{}", bucket, url1);
 
     easy.url(&format!("http://{}/{}", host, key)).unwrap();
+    easy.verbose(true).unwrap();
     easy.put(true).unwrap();
 
     let mut headers = List::new();
-    headers.append("key1: val1").unwrap();
 
     let format_date = util::get_date();
-
-    println!("date {}",format_date);
 
     let auth = aliyun::oss::Client {
         verb: "PUT".to_string(),
@@ -34,16 +32,19 @@ fn putobject() {
         oss_headers: [].to_vec(),
         bucket,
         content_type: "text/plain".to_string(),
-        date: Some(format_date),
+        date: Some(format_date.clone()),
         key,
         key_id,
         key_secret,
     };
 
     headers
-        .append(&format!("Authorization: {}", auth.make_authorization()))
+        .append(&format!("authorization: {}", auth.make_authorization()))
         .unwrap();
     headers.append(&format!("Host: {}", host)).unwrap();
+    headers
+        .append(&format!("date: {}", format_date.clone()))
+        .unwrap();
 
     easy.http_headers(headers).unwrap();
 
@@ -60,7 +61,4 @@ fn putobject() {
             .unwrap();
         transfer.perform().unwrap();
     }
-
-    let res = String::from_utf8(buf).unwrap();
-    println!("{}", res)
 }
