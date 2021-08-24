@@ -9,16 +9,16 @@ fn list_bucket() {
     let key_secret: String = env::var("ali_key_secret").unwrap();
     println!("Read env: id {}\nsecret {}", key_id, key_secret);
 
-    let url1 = "oss-cn-shanghai-internal.aliyuncs.com";
+    let url1 = "oss-cn-shanghai.aliyuncs.com";
     let mut buf: Vec<u8> = Vec::new();
     let mut easy = Easy::new();
-    let mut data = "test body".as_bytes();
+    let mut body1 = "test body".as_bytes();
 
     let bucket = "podcast40".to_string();
     let key = "test1.txt".to_string();
     let host = format!("{}.{}", bucket, url1);
 
-    easy.url(&format!("http://{}/{}", host, key)).unwrap();
+    easy.url(&format!("https://{}/{}", host, key)).unwrap();
     easy.put(true).unwrap();
 
     let mut headers = List::new();
@@ -26,7 +26,7 @@ fn list_bucket() {
 
     let auth = aliyun::oss::Client {
         verb: "PUT".to_string(),
-        content: data.to_vec(),
+        content: body1.to_vec(),
         oss_headers: [].to_vec(),
         bucket,
         content_type: "text/plain".to_string(),
@@ -46,15 +46,18 @@ fn list_bucket() {
     {
         let mut transfer = easy.transfer();
         transfer
-            .read_function(|buf| Ok(data.read(buf).unwrap_or(0)))
+            .read_function(|buf| {
+                println!("write body {:?}", buf);
+                Ok(body1.read(buf).unwrap_or(0))
+            })
             .unwrap();
         transfer
-            .write_function(|data| {
-                let s = String::from_utf8_lossy(data);
+            .write_function(|dt| {
+                let s = String::from_utf8_lossy(dt);
                 println!("resp: {}", s);
 
-                buf.extend_from_slice(data);
-                Ok(data.len())
+                buf.extend_from_slice(dt);
+                Ok(dt.len())
             })
             .unwrap();
         transfer.perform().unwrap();
