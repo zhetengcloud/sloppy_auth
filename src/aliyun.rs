@@ -9,7 +9,8 @@ fn sign_base64(key_secret: &str, body: &str) -> String {
 
 pub mod oss {
     use super::sign_base64;
-    use chrono::prelude::Utc;
+    use crate::util::get_date;
+
     pub struct Client {
         pub verb: String,
         pub content: Vec<u8>,
@@ -38,7 +39,7 @@ pub mod oss {
             let content_md5 = base64::encode(*md5::compute(&content));
             let date_str: String = match date {
                 Some(t) => t.to_owned(),
-                None => Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+                None => get_date(),
             };
 
             Body {
