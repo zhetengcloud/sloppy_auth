@@ -36,9 +36,15 @@ pub mod oss {
 
     impl ToString for Headers {
         fn to_string(&self) -> String {
-            self.0
+            let mut list_to_sort = self
+                .0
                 .iter()
                 .map(|x| x.to_lowercase())
+                .collect::<Vec<String>>();
+            list_to_sort.sort_by(|a, b| a.cmp(b));
+
+            list_to_sort
+                .iter()
                 .map(|x| x.replace(" ", ""))
                 .fold("".to_string(), |mut acc, x| {
                     acc.push_str(&x);
@@ -60,12 +66,15 @@ pub mod oss {
         fn headers_test() {
             let headers1 = Headers(
                 [
-                    "X-OSS-Meta-Name: TaoBao".to_string(),
-                    "X-OSS-Meta-a: meTAa".to_string(),
+                    "X-OSS-Z-Name: val1".to_string(),
+                    "X-OSS-OMeta-Name: val2".to_string(),
+                    "X-OSS-Meta-a: CVal".to_string(),
+                    "X-OSS-Meta-b: Eval".to_string(),
+                    "X-OSS-Neta-a: DVal".to_string(),
                 ]
                 .to_vec(),
             );
-            let expect1 = "x-oss-meta-name:taobao\nx-oss-meta-a:metaa\n";
+            let expect1 = "x-oss-meta-a:cval\nx-oss-meta-b:eval\nx-oss-neta-a:dval\nx-oss-ometa-name:val2\nx-oss-z-name:val1\n";
             assert_eq!(headers1.to_string(), expect1);
             let headers2 = Headers([].to_vec());
             assert_eq!(headers2.to_string(), "");
