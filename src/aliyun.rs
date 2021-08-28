@@ -27,8 +27,8 @@ pub mod oss {
         fn make_body(&self) -> Body {
             let Client {
                 verb,
-                content,
-                content_type,
+                content: _,
+                content_type: _,
                 date,
                 oss_headers,
                 bucket,
@@ -36,7 +36,8 @@ pub mod oss {
                 ..
             } = self;
 
-            let content_md5 = util::content_md5(&content);
+            let content_md5 = "".to_string();
+
             let date_str: String = match date {
                 Some(t) => t.to_owned(),
                 None => util::get_date(),
@@ -45,7 +46,7 @@ pub mod oss {
             Body {
                 verb: verb.to_owned(),
                 content_md5,
-                content_type: content_type.to_owned(),
+                content_type: "".to_string(),
                 date: date_str,
                 canonicalized_ossheaders: Headers(oss_headers.to_owned()).to_string(),
                 canonicalized_resource: format!("/{}/{}", bucket, key),

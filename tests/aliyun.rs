@@ -12,7 +12,7 @@ fn putobject() {
     let url1 = "oss-cn-shanghai.aliyuncs.com";
     let mut buf: Vec<u8> = Vec::new();
     let mut easy = Easy::new();
-    let body1 = "test body";
+    let body1 = "hello rust body";
 
     let bucket = "podcast40".to_string();
     let key = "test1.txt".to_string();
