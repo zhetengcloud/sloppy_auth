@@ -1,11 +1,13 @@
 [package]
 name = "sloppy_auth"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 
 [dependencies]
 base64 = "^0.13"
 rust-crypto = "^0.2"
 chrono = "^0.4"
+
+[dev-dependencies]
 md-5 = "^0.9"
 curl = { version = "^0.4", default_features = false ,features = [ "static-curl", "mesalink" ] }
