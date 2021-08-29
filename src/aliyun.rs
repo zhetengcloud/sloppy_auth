@@ -24,6 +24,10 @@ pub mod oss {
     }
 
     impl Client {
+        /**
+         * Not used:
+         * content, content_type, content_md5
+         */
         fn make_body(&self) -> Body {
             let Client {
                 verb,
