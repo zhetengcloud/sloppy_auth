@@ -11,10 +11,12 @@ pub mod oss {
     use super::sign_base64;
     use crate::util;
 
+    type Heads = Vec<(String, String)>;
+
     pub struct Client {
         pub verb: String,
         pub date: Option<String>,
-        pub oss_headers: Vec<String>,
+        pub oss_headers: Heads,
         pub bucket: String,
         pub key: String,
         pub key_id: String,
@@ -46,7 +48,7 @@ pub mod oss {
                 content_md5: "".to_string(),
                 content_type: "".to_string(),
                 date: date_str,
-                canonicalized_ossheaders: Headers(oss_headers.to_owned()).to_string(),
+                canonicalized_ossheaders: Headers(oss_headers.to_vec()).to_string(),
                 canonicalized_resource: format!("/{}/{}", bucket, key),
             }
         }
@@ -82,28 +84,24 @@ pub mod oss {
     }
 
     // newtype of CanonicalizedOSSHeaders
-    struct Headers(Vec<String>);
+    struct Headers(Heads);
 
     impl ToString for Headers {
         fn to_string(&self) -> String {
-            "".to_string()
-            /*
             let mut list_to_sort = self
                 .0
                 .iter()
-                .map(|x| x.to_lowercase())
-                .collect::<Vec<String>>();
-            list_to_sort.sort_by(|a, b| a.cmp(b));
+                .map(|(k, v)| (k.to_lowercase(), v.clone()))
+                .collect::<Heads>();
+            list_to_sort.sort_by(|a, b| a.0.cmp(&(b.0)));
 
-            list_to_sort
-                .iter()
-                .map(|x| x.replace(" ", ""))
-                .fold("".to_string(), |mut acc, x| {
-                    acc.push_str(&x);
-                    acc.push('\n');
-                    acc
-                })
-            */
+            list_to_sort.iter().fold("".to_string(), |mut acc, (k, v)| {
+                acc.push_str(k);
+                acc.push(':');
+                acc.push_str(v);
+                acc.push('\n');
+                acc
+            })
         }
     }
 
@@ -113,17 +111,14 @@ pub mod oss {
 
         #[test]
         fn headers_test() {
-            let headers1 = Headers(
-                [
-                    "X-OSS-Z-Name: val1".to_string(),
-                    "X-OSS-OMeta-Name: val2".to_string(),
-                    "X-OSS-Meta-a: CVal".to_string(),
-                    "X-OSS-Meta-b: Eval".to_string(),
-                    "X-OSS-Neta-a: DVal".to_string(),
-                ]
-                .to_vec(),
-            );
-            let expect1 = "x-oss-meta-a:cval\nx-oss-meta-b:eval\nx-oss-neta-a:dval\nx-oss-ometa-name:val2\nx-oss-z-name:val1\n";
+            let headers1 = Headers(vec![
+                ("X-OSS-Z-Name".to_string(), "Val1".to_string()),
+                ("X-OSS-OMeta-Name".to_string(), "val2".to_string()),
+                ("X-OSS-Meta-a".to_string(), "Cval".to_string()),
+                ("X-OSS-Meta-b".to_string(), "Eval".to_string()),
+                ("X-OSS-Neta-a".to_string(), "Dval".to_string()),
+            ]);
+            let expect1 = "x-oss-meta-a:Cval\nx-oss-meta-b:Eval\nx-oss-neta-a:Dval\nx-oss-ometa-name:val2\nx-oss-z-name:Val1\n";
             assert_eq!(headers1.to_string(), expect1);
             let headers2 = Headers([].to_vec());
             assert_eq!(headers2.to_string(), "");
