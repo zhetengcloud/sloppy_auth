@@ -16,6 +16,7 @@ pub mod oss {
     pub struct Client {
         pub verb: String,
         pub content_md5: String,
+        pub content_type: String,
         pub date: Option<String>,
         pub oss_headers: Heads,
         pub bucket: String,
@@ -25,14 +26,11 @@ pub mod oss {
     }
 
     impl Client {
-        /**
-         * Not used:
-         * content_type, content_md5
-         */
         fn make_body(&self) -> Body {
             let Client {
                 verb,
                 content_md5,
+                content_type,
                 date,
                 oss_headers,
                 bucket,
@@ -48,7 +46,7 @@ pub mod oss {
             Body {
                 verb: verb.to_owned(),
                 content_md5: content_md5.clone(),
-                content_type: "".to_string(),
+                content_type: content_type.clone(),
                 date: date_str,
                 canonicalized_ossheaders: Headers(oss_headers.to_vec()).to_string(),
                 canonicalized_resource: format!("/{}/{}", bucket, key),

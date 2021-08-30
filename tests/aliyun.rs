@@ -27,11 +27,20 @@ fn putobject() {
     let format_date = util::get_date();
 
     let content_md5 = util::md5(body1.as_bytes().to_vec());
+    let content_type = "text/plain".to_string();
+
+    let h1 = "X-OSS-Meta-Author".to_string();
+    let v1 = "foo@bar.com".to_string();
+    let h2 = "X-OSS-TMa".to_string();
+    let v2 = "foo123".to_string();
+    let x_oss_1 = (h1.clone(), v1.clone());
+    let x_oss_2 = (h2.clone(), v2.clone());
 
     let auth = aliyun::oss::Client {
         verb: "PUT".to_string(),
         content_md5: content_md5.clone(),
-        oss_headers: [].to_vec(),
+        content_type: content_type.clone(),
+        oss_headers: vec![x_oss_1, x_oss_2],
         bucket,
         date: Some(format_date.clone()),
         key,
@@ -44,11 +53,16 @@ fn putobject() {
         .unwrap();
     headers.append(&format!("Host: {}", host)).unwrap();
     headers
+        .append(&format!("Content-Type: {}", content_type))
+        .unwrap();
+    headers
         .append(&format!("Content-Md5: {}", content_md5))
         .unwrap();
     headers
         .append(&format!("Date: {}", format_date.clone()))
         .unwrap();
+    headers.append(&format!("{}: {}", h1, v1)).unwrap();
+    headers.append(&format!("{}: {}", h2, v2)).unwrap();
 
     easy.http_headers(headers).unwrap();
 
