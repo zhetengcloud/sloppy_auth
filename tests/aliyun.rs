@@ -26,8 +26,11 @@ fn putobject() {
 
     let format_date = util::get_date();
 
+    let content_md5 = util::md5(body1.as_bytes().to_vec());
+
     let auth = aliyun::oss::Client {
         verb: "PUT".to_string(),
+        content_md5: content_md5.clone(),
         oss_headers: [].to_vec(),
         bucket,
         date: Some(format_date.clone()),
@@ -37,11 +40,14 @@ fn putobject() {
     };
 
     headers
-        .append(&format!("authorization: {}", auth.make_authorization()))
+        .append(&format!("Authorization: {}", auth.make_authorization()))
         .unwrap();
     headers.append(&format!("Host: {}", host)).unwrap();
     headers
-        .append(&format!("date: {}", format_date.clone()))
+        .append(&format!("Content-Md5: {}", content_md5))
+        .unwrap();
+    headers
+        .append(&format!("Date: {}", format_date.clone()))
         .unwrap();
 
     easy.http_headers(headers).unwrap();

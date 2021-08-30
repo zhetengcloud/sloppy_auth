@@ -15,6 +15,7 @@ pub mod oss {
 
     pub struct Client {
         pub verb: String,
+        pub content_md5: String,
         pub date: Option<String>,
         pub oss_headers: Heads,
         pub bucket: String,
@@ -31,6 +32,7 @@ pub mod oss {
         fn make_body(&self) -> Body {
             let Client {
                 verb,
+                content_md5,
                 date,
                 oss_headers,
                 bucket,
@@ -45,7 +47,7 @@ pub mod oss {
 
             Body {
                 verb: verb.to_owned(),
-                content_md5: "".to_string(),
+                content_md5: content_md5.clone(),
                 content_type: "".to_string(),
                 date: date_str,
                 canonicalized_ossheaders: Headers(oss_headers.to_vec()).to_string(),
@@ -55,7 +57,8 @@ pub mod oss {
 
         pub fn make_authorization(&self) -> String {
             let body = self.make_body();
-            let sig: String = sign_base64(&self.key_secret, body.to_string().as_ref());
+            let body_str = body.to_string();
+            let sig: String = sign_base64(&self.key_secret, body_str.as_ref());
             format!("OSS {}:{}", self.key_id, sig)
         }
     }
