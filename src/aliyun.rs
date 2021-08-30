@@ -13,8 +13,6 @@ pub mod oss {
 
     pub struct Client {
         pub verb: String,
-        pub content: Vec<u8>,
-        pub content_type: String,
         pub date: Option<String>,
         pub oss_headers: Vec<String>,
         pub bucket: String,
@@ -26,21 +24,17 @@ pub mod oss {
     impl Client {
         /**
          * Not used:
-         * content, content_type, content_md5
+         * content_type, content_md5
          */
         fn make_body(&self) -> Body {
             let Client {
                 verb,
-                content: _,
-                content_type: _,
                 date,
                 oss_headers,
                 bucket,
                 key,
                 ..
             } = self;
-
-            let content_md5 = "".to_string();
 
             let date_str: String = match date {
                 Some(t) => t.to_owned(),
@@ -49,7 +43,7 @@ pub mod oss {
 
             Body {
                 verb: verb.to_owned(),
-                content_md5,
+                content_md5: "".to_string(),
                 content_type: "".to_string(),
                 date: date_str,
                 canonicalized_ossheaders: Headers(oss_headers.to_owned()).to_string(),

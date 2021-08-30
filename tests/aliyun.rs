@@ -28,10 +28,8 @@ fn putobject() {
 
     let auth = aliyun::oss::Client {
         verb: "PUT".to_string(),
-        content: body1.as_bytes().to_vec(),
         oss_headers: [].to_vec(),
         bucket,
-        content_type: "text/plain".to_string(),
         date: Some(format_date.clone()),
         key,
         key_id,
