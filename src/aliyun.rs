@@ -86,6 +86,8 @@ pub mod oss {
 
     impl ToString for Headers {
         fn to_string(&self) -> String {
+            "".to_string()
+            /*
             let mut list_to_sort = self
                 .0
                 .iter()
@@ -101,6 +103,7 @@ pub mod oss {
                     acc.push('\n');
                     acc
                 })
+            */
         }
     }
 
