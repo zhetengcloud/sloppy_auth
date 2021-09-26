@@ -35,7 +35,8 @@ pub mod oss {
                 oss_headers,
                 bucket,
                 key,
-                ..
+                key_id: _,
+                key_secret: _,
             } = self;
 
             let date_str: String = match date {
