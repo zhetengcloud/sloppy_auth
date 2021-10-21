@@ -11,21 +11,26 @@ pub mod oss {
     use super::sign_base64;
     use crate::util;
 
-    type Heads = Vec<(String, String)>;
-
-    pub struct Client {
+    #[derive(Clone, Default)]
+    pub struct Client<T>
+    where
+        T: IntoIterator<Item = (String, String)> + Clone,
+    {
         pub verb: String,
         pub content_md5: String,
         pub content_type: String,
         pub date: Option<String>,
-        pub oss_headers: Heads,
+        pub oss_headers: T,
         pub bucket: String,
         pub key: String,
         pub key_id: String,
         pub key_secret: String,
     }
 
-    impl Client {
+    impl<T> Client<T>
+    where
+        T: IntoIterator<Item = (String, String)> + Clone,
+    {
         fn make_body(&self) -> Body {
             let Client {
                 verb,
@@ -49,7 +54,7 @@ pub mod oss {
                 content_md5: content_md5.clone(),
                 content_type: content_type.clone(),
                 date: date_str,
-                canonicalized_ossheaders: Headers(oss_headers.to_vec()).to_string(),
+                canonicalized_ossheaders: make_ossheaders(oss_headers.clone()),
                 canonicalized_resource: format!("/{}/{}", bucket, key),
             }
         }
@@ -85,26 +90,24 @@ pub mod oss {
         }
     }
 
-    // newtype of CanonicalizedOSSHeaders
-    struct Headers(Heads);
+    fn make_ossheaders<T>(headers: T) -> String
+    where
+        T: IntoIterator<Item = (String, String)> + Clone,
+    {
+        let mut list_to_sort = headers
+            .clone()
+            .into_iter()
+            .map(|(k, v)| (k.to_lowercase(), v.clone()))
+            .collect::<Vec<(String, String)>>();
+        list_to_sort.sort_by(|a, b| a.0.cmp(&(b.0)));
 
-    impl ToString for Headers {
-        fn to_string(&self) -> String {
-            let mut list_to_sort = self
-                .0
-                .iter()
-                .map(|(k, v)| (k.to_lowercase(), v.clone()))
-                .collect::<Heads>();
-            list_to_sort.sort_by(|a, b| a.0.cmp(&(b.0)));
-
-            list_to_sort.iter().fold("".to_string(), |mut acc, (k, v)| {
-                acc.push_str(k);
-                acc.push(':');
-                acc.push_str(v);
-                acc.push('\n');
-                acc
-            })
-        }
+        list_to_sort.iter().fold("".to_string(), |mut acc, (k, v)| {
+            acc.push_str(k);
+            acc.push(':');
+            acc.push_str(v);
+            acc.push('\n');
+            acc
+        })
     }
 
     #[cfg(test)]
@@ -113,17 +116,17 @@ pub mod oss {
 
         #[test]
         fn headers_test() {
-            let headers1 = Headers(vec![
+            let headers1 = vec![
                 ("X-OSS-Z-Name".to_string(), "Val1".to_string()),
                 ("X-OSS-OMeta-Name".to_string(), "val2".to_string()),
                 ("X-OSS-Meta-a".to_string(), "Cval".to_string()),
                 ("X-OSS-Meta-b".to_string(), "Eval".to_string()),
                 ("X-OSS-Neta-a".to_string(), "Dval".to_string()),
-            ]);
+            ];
             let expect1 = "x-oss-meta-a:Cval\nx-oss-meta-b:Eval\nx-oss-neta-a:Dval\nx-oss-ometa-name:val2\nx-oss-z-name:Val1\n";
-            assert_eq!(headers1.to_string(), expect1);
-            let headers2 = Headers([].to_vec());
-            assert_eq!(headers2.to_string(), "");
+            assert_eq!(make_ossheaders(headers1), expect1);
+            let headers2 = vec![];
+            assert_eq!(make_ossheaders(headers2), "");
         }
 
         #[test]
