@@ -23,7 +23,7 @@ pub mod oss {
     where
         T: Headers,
     {
-        fn make_body(&self) -> Body {
+        fn make_string_to_sign(&self) -> StringToSign {
             let Client {
                 verb,
                 content_md5,
@@ -41,7 +41,7 @@ pub mod oss {
                 None => util::get_date(),
             };
 
-            Body {
+            StringToSign {
                 verb: verb.to_owned(),
                 content_md5: content_md5.clone(),
                 content_type: content_type.clone(),
@@ -52,14 +52,13 @@ pub mod oss {
         }
 
         pub fn make_authorization(&self) -> String {
-            let body = self.make_body();
-            let body_str = body.to_string();
-            let sig: String = util::sign_base64(&self.key_secret, body_str.as_ref());
+            let str_tosign = self.make_string_to_sign().to_string();
+            let sig: String = util::sign_base64(&self.key_secret, str_tosign.as_ref());
             format!("OSS {}:{}", self.key_id, sig)
         }
     }
 
-    pub struct Body {
+    pub struct StringToSign {
         pub verb: String,
         pub content_md5: String,
         pub content_type: String,
@@ -68,7 +67,7 @@ pub mod oss {
         pub canonicalized_resource: String,
     }
 
-    impl ToString for Body {
+    impl ToString for StringToSign {
         fn to_string(&self) -> String {
             format!(
                 "{}\n{}\n{}\n{}\n{}{}",

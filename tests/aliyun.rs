@@ -2,7 +2,7 @@ use sloppy_auth::{aliyun, util};
 use std::env;
 
 #[test]
-fn putobject() {
+fn ali_putobject() {
     let key_id: String = env::var("ali_key_id").unwrap();
     let key_secret: String = env::var("ali_key_secret").unwrap();
     println!("Read env: id {}\nsecret {}", key_id, key_secret);
