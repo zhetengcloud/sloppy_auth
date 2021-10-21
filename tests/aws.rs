@@ -24,10 +24,6 @@ mod tests {
 
         let mut headers = HashMap::new();
         headers.insert(
-            "Date".to_string(),
-            date.format(util::GMT_DATETIME).to_string(),
-        );
-        headers.insert(
             "X-Amz-Date".to_string(),
             date.format(util::LONG_DATETIME).to_string(),
         );
