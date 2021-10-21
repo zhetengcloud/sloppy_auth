@@ -3,8 +3,9 @@
  */
 pub mod s3 {
 
-    use crate::util::{Headers, LONG_DATETIME, SHORT_DATE, self};
+    use crate::util::{self, Headers, LONG_DATETIME, SHORT_DATE};
     use chrono::{DateTime, Utc};
+    use ring::{digest, hmac};
     use url::Url;
 
     pub struct Sign<'a, T>
@@ -63,8 +64,8 @@ pub mod s3 {
             let canonical = self.canonical_request();
             let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
             let signing_key = signing_key(self.datetime, self.secret_key, self.region, "s3");
-            let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, &signing_key.unwrap());
-            let tag = ring::hmac::sign(&key, string_to_sign.as_bytes());
+            let key = hmac::Key::new(hmac::HMAC_SHA256, &signing_key.unwrap());
+            let tag = hmac::sign(&key, string_to_sign.as_bytes());
             let signature = hex::encode(tag.as_ref());
             let signed_headers = self.signed_header_string();
 
@@ -118,7 +119,7 @@ pub mod s3 {
     }
 
     pub fn string_to_sign(datetime: &DateTime<Utc>, region: &str, canonical_req: &str) -> String {
-        let hash = ring::digest::digest(&ring::digest::SHA256, canonical_req.as_bytes());
+        let hash = digest::digest(&digest::SHA256, canonical_req.as_bytes());
         format!(
             "AWS4-HMAC-SHA256\n{timestamp}\n{scope}\n{hash}",
             timestamp = datetime.format(LONG_DATETIME),
@@ -135,20 +136,20 @@ pub mod s3 {
     ) -> Result<Vec<u8>, String> {
         let secret = String::from("AWS4") + secret_key;
 
-        let date_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, secret.as_bytes());
-        let date_tag = ring::hmac::sign(
+        let date_key = hmac::Key::new(hmac::HMAC_SHA256, secret.as_bytes());
+        let date_tag = hmac::sign(
             &date_key,
             datetime.format(SHORT_DATE).to_string().as_bytes(),
         );
 
-        let region_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, date_tag.as_ref());
-        let region_tag = ring::hmac::sign(&region_key, region.to_string().as_bytes());
+        let region_key = hmac::Key::new(hmac::HMAC_SHA256, date_tag.as_ref());
+        let region_tag = hmac::sign(&region_key, region.to_string().as_bytes());
 
-        let service_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, region_tag.as_ref());
-        let service_tag = ring::hmac::sign(&service_key, service.as_bytes());
+        let service_key = hmac::Key::new(hmac::HMAC_SHA256, region_tag.as_ref());
+        let service_tag = hmac::sign(&service_key, service.as_bytes());
 
-        let signing_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, service_tag.as_ref());
-        let signing_tag = ring::hmac::sign(&signing_key, b"aws4_request");
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, service_tag.as_ref());
+        let signing_tag = hmac::sign(&signing_key, b"aws4_request");
         Ok(signing_tag.as_ref().to_vec())
     }
 }
