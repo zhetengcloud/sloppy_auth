@@ -30,7 +30,6 @@ impl<T> Headers for T
 where
     T: IntoIterator<Item = (String, String)> + Clone,
 {
-    //aliyun CanonicalizedOSSHeaders has trailing \n while aws doesn't
     fn to_canonical(&self) -> String {
         let mut list_to_sort = self
             .clone()

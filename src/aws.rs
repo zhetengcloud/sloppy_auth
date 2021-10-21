@@ -25,17 +25,6 @@ pub mod s3 {
     where
         T: Headers,
     {
-        pub fn canonical_header_string(&'a self) -> String {
-            let mut keyvalues = self
-                .headers
-                .clone()
-                .into_iter()
-                .map(|(key, value)| key.to_lowercase() + ":" + value.trim())
-                .collect::<Vec<String>>();
-            keyvalues.sort();
-            keyvalues.join("\n")
-        }
-
         pub fn signed_header_string(&'a self) -> String {
             let mut keys = self
                 .headers
@@ -51,11 +40,11 @@ pub mod s3 {
             let url: &str = self.url.path().into();
 
             format!(
-                "{method}\n{uri}\n{query_string}\n{headers}\n\n{signed}\n{sha256}",
+                "{method}\n{uri}\n{query_string}\n{headers}\n{signed}\n{sha256}",
                 method = self.method,
                 uri = url,
                 query_string = canonical_query_string(&self.url),
-                headers = self.canonical_header_string(),
+                headers = self.headers.to_canonical(),
                 signed = self.signed_header_string(),
                 sha256 = util::UNSIGNED_PAYLOAD,
             )
