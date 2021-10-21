@@ -50,7 +50,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn headers_test() {
+    fn util_headers() {
         let headers1 = vec![
             ("X-OSS-Z-Name".to_string(), "Val1".to_string()),
             ("X-OSS-OMeta-Name".to_string(), "val2".to_string()),
@@ -65,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn base64() {
+    fn util_base64() {
         let key1 = "key1";
         let body1 = "body1";
         assert_eq!(sign_base64(key1, body1), "u3fznj0yiE48+1xlkideoCqhhdc=")
