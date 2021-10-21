@@ -53,7 +53,7 @@ pub mod s3 {
             let canonical = self.canonical_request();
             let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
             let signing_key = signing_key(self.datetime, self.secret_key, self.region, "s3");
-            let key = hmac::Key::new(hmac::HMAC_SHA256, &signing_key.unwrap());
+            let key = hmac::Key::new(hmac::HMAC_SHA256, &signing_key);
             let tag = hmac::sign(&key, string_to_sign.as_bytes());
             let signature = hex::encode(tag.as_ref());
             let signed_headers = self.signed_header_string();
@@ -122,7 +122,7 @@ pub mod s3 {
         secret_key: &str,
         region: &str,
         service: &str,
-    ) -> Result<Vec<u8>, String> {
+    ) -> Vec<u8> {
         let secret = String::from("AWS4") + secret_key;
 
         let date_key = hmac::Key::new(hmac::HMAC_SHA256, secret.as_bytes());
@@ -139,6 +139,6 @@ pub mod s3 {
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, service_tag.as_ref());
         let signing_tag = hmac::sign(&signing_key, b"aws4_request");
-        Ok(signing_tag.as_ref().to_vec())
+        signing_tag.as_ref().to_vec()
     }
 }
