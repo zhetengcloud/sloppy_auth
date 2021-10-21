@@ -6,9 +6,10 @@ publish = false
 
 [dependencies]
 base64 = "^0.13"
-rust-crypto = "^0.2"
+ring = "^0.16"
 chrono = "^0.4"
 md5 = "^0.7"
+url = "^2.2"
 
 [dev-dependencies]
 ureq = "^2.2"

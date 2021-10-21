@@ -1,5 +1,5 @@
 use chrono::prelude::Utc;
-use crypto::{hmac::Hmac, mac::Mac, sha1::Sha1};
+use ring::hmac::{self, HMAC_SHA1_FOR_LEGACY_USE_ONLY};
 
 //aliyun date format
 pub fn get_date() -> String {
@@ -40,14 +40,15 @@ where
 }
 
 pub fn sign_base64(key_secret: &str, body: &str) -> String {
-    let mut mac = Hmac::new(Sha1::new(), key_secret.as_bytes());
-    mac.input(body.as_bytes());
-    base64::encode(mac.result().code())
+    let key = hmac::Key::new(HMAC_SHA1_FOR_LEGACY_USE_ONLY, key_secret.as_bytes());
+    let tag = hmac::sign(&key, body.as_bytes());
+    base64::encode(tag.as_ref())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn util_headers() {
@@ -62,6 +63,10 @@ mod tests {
         assert_eq!(headers1.to_canonical(), expect1);
         let headers2 = vec![];
         assert_eq!(headers2.to_canonical(), "");
+
+        let mut map1: HashMap<String, String> = HashMap::new();
+        map1.extend(headers1);
+        assert_eq!(map1.to_canonical(), expect1);
     }
 
     #[test]
