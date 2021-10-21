@@ -1,7 +1,5 @@
-use curl::easy::{Easy, List};
 use sloppy_auth::{aliyun, util};
 use std::env;
-use std::io::Read;
 
 #[test]
 fn putobject() {
@@ -9,20 +7,14 @@ fn putobject() {
     let key_secret: String = env::var("ali_key_secret").unwrap();
     println!("Read env: id {}\nsecret {}", key_id, key_secret);
 
-    let url1 = "oss-cn-shanghai.aliyuncs.com";
-    let mut buf: Vec<u8> = Vec::new();
-    let mut easy = Easy::new();
+    let endpoint = "oss-cn-shanghai.aliyuncs.com";
     let body1 = "hello rust body";
 
     let bucket = "podcast40".to_string();
     let key = "test1.txt".to_string();
-    let host = format!("{}.{}", bucket, url1);
+    let host = format!("{}.{}", bucket, endpoint);
 
-    easy.url(&format!("http://{}/{}", host, key)).unwrap();
-    easy.verbose(true).unwrap();
-    easy.put(true).unwrap();
-
-    let mut headers = List::new();
+    let url1 = format!("http://{}/{}", host, key);
 
     let format_date = util::get_date();
 
@@ -48,36 +40,30 @@ fn putobject() {
         key_secret,
     };
 
-    headers
-        .append(&format!("Authorization: {}", auth.make_authorization()))
-        .unwrap();
-    headers.append(&format!("Host: {}", host)).unwrap();
-    headers
-        .append(&format!("Content-Type: {}", content_type))
-        .unwrap();
-    headers
-        .append(&format!("Content-Md5: {}", content_md5))
-        .unwrap();
-    headers
-        .append(&format!("Date: {}", format_date.clone()))
-        .unwrap();
-    headers.append(&format!("{}: {}", h1, v1)).unwrap();
-    headers.append(&format!("{}: {}", h2, v2)).unwrap();
+    let mut list = Vec::new();
+    list.push(("Authorization".to_string(), auth.make_authorization()));
+    list.push(("Host".to_string(), host));
+    list.push(("Content-Type".to_string(), content_type));
+    list.push(("Content-Md5".to_string(), content_md5));
+    list.push(("Date".to_string(), format_date.clone()));
+    list.push((h1, v1));
+    list.push((h2, v2));
 
-    easy.http_headers(headers).unwrap();
+    let mut request = ureq::put(&url1);
 
-    {
-        let mut body2 = body1.as_bytes();
-        let mut transfer = easy.transfer();
-        transfer
-            .read_function(|buf| Ok(body2.read(buf).unwrap_or(0)))
-            .unwrap();
-        transfer
-            .write_function(|dt| {
-                buf.extend_from_slice(dt);
-                Ok(dt.len())
-            })
-            .unwrap();
-        transfer.perform().unwrap();
+    for (k, v) in list {
+        request = request.set(&k, &v);
+    }
+    match request.send_string(body1) {
+        Ok(resp) => {
+            println!(
+                "response status: {}, body: {}",
+                resp.status(),
+                resp.into_string().unwrap()
+            )
+        }
+        Err(e) => {
+            println!("request failed {:?}", e);
+        }
     }
 }

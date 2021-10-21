@@ -125,17 +125,12 @@ pub mod oss {
             let headers2 = Headers([].to_vec());
             assert_eq!(headers2.to_string(), "");
         }
-    }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn base64() {
-        let key1 = "key1";
-        let body1 = "body1";
-        assert_eq!(sign_base64(key1, body1), "u3fznj0yiE48+1xlkideoCqhhdc=")
+        #[test]
+        fn base64() {
+            let key1 = "key1";
+            let body1 = "body1";
+            assert_eq!(sign_base64(key1, body1), "u3fznj0yiE48+1xlkideoCqhhdc=")
+        }
     }
 }
