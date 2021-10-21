@@ -29,7 +29,7 @@ mod tests {
         );
         headers.insert(
             "X-Amz-Content-Sha256".to_string(),
-            "UNSIGNED-PAYLOAD".to_string(),
+            util::UNSIGNED_PAYLOAD.to_string(),
         );
         headers.insert("Host".to_string(), host);
 

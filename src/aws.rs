@@ -3,7 +3,7 @@
  */
 pub mod s3 {
 
-    use crate::util::{Headers, LONG_DATETIME, SHORT_DATE};
+    use crate::util::{Headers, LONG_DATETIME, SHORT_DATE, self};
     use chrono::{DateTime, Utc};
     use url::Url;
 
@@ -48,7 +48,6 @@ pub mod s3 {
 
         pub fn canonical_request(&'a self) -> String {
             let url: &str = self.url.path().into();
-            let sha256 = "UNSIGNED-PAYLOAD";
 
             format!(
                 "{method}\n{uri}\n{query_string}\n{headers}\n\n{signed}\n{sha256}",
@@ -57,7 +56,7 @@ pub mod s3 {
                 query_string = canonical_query_string(&self.url),
                 headers = self.canonical_header_string(),
                 signed = self.signed_header_string(),
-                sha256 = sha256
+                sha256 = util::UNSIGNED_PAYLOAD,
             )
         }
         pub fn sign(&'a self) -> String {
