@@ -3,12 +3,9 @@
  */
 pub mod s3 {
 
-    use crate::util::Headers;
+    use crate::util::{Headers, LONG_DATETIME, SHORT_DATE};
     use chrono::{DateTime, Utc};
     use url::Url;
-
-    const SHORT_DATE: &str = "%Y%m%d";
-    const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
 
     pub struct Sign<'a, T>
     where

@@ -1,9 +1,13 @@
 use chrono::prelude::Utc;
 use ring::hmac::{self, HMAC_SHA1_FOR_LEGACY_USE_ONLY};
 
+pub const SHORT_DATE: &str = "%Y%m%d";
+pub const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
+pub const GMT_DATETIME: &str = "%a, %d %b %Y %T GMT";
+
 //aliyun date format
 pub fn get_date() -> String {
-    Utc::now().format("%a, %d %b %Y %T GMT").to_string()
+    Utc::now().format(GMT_DATETIME).to_string()
 }
 
 pub fn md5(content: Vec<u8>) -> String {
