@@ -1,20 +1,12 @@
 // https://help.aliyun.com/document_detail/100669.html
-use crypto::{hmac::Hmac, mac::Mac, sha1::Sha1};
-
-fn sign_base64(key_secret: &str, body: &str) -> String {
-    let mut mac = Hmac::new(Sha1::new(), key_secret.as_bytes());
-    mac.input(body.as_bytes());
-    base64::encode(mac.result().code())
-}
 
 pub mod oss {
-    use super::sign_base64;
-    use crate::util;
+    use crate::util::{self, Headers};
 
     #[derive(Clone, Default)]
     pub struct Client<T>
     where
-        T: IntoIterator<Item = (String, String)> + Clone,
+        T: Headers,
     {
         pub verb: String,
         pub content_md5: String,
@@ -29,7 +21,7 @@ pub mod oss {
 
     impl<T> Client<T>
     where
-        T: IntoIterator<Item = (String, String)> + Clone,
+        T: Headers,
     {
         fn make_body(&self) -> Body {
             let Client {
@@ -54,7 +46,7 @@ pub mod oss {
                 content_md5: content_md5.clone(),
                 content_type: content_type.clone(),
                 date: date_str,
-                canonicalized_ossheaders: make_ossheaders(oss_headers.clone()),
+                canonicalized_ossheaders: oss_headers.to_canonical(),
                 canonicalized_resource: format!("/{}/{}", bucket, key),
             }
         }
@@ -62,7 +54,7 @@ pub mod oss {
         pub fn make_authorization(&self) -> String {
             let body = self.make_body();
             let body_str = body.to_string();
-            let sig: String = sign_base64(&self.key_secret, body_str.as_ref());
+            let sig: String = util::sign_base64(&self.key_secret, body_str.as_ref());
             format!("OSS {}:{}", self.key_id, sig)
         }
     }
@@ -87,53 +79,6 @@ pub mod oss {
                 self.canonicalized_ossheaders,
                 self.canonicalized_resource
             )
-        }
-    }
-
-    fn make_ossheaders<T>(headers: T) -> String
-    where
-        T: IntoIterator<Item = (String, String)> + Clone,
-    {
-        let mut list_to_sort = headers
-            .clone()
-            .into_iter()
-            .map(|(k, v)| (k.to_lowercase(), v.clone()))
-            .collect::<Vec<(String, String)>>();
-        list_to_sort.sort_by(|a, b| a.0.cmp(&(b.0)));
-
-        list_to_sort.iter().fold("".to_string(), |mut acc, (k, v)| {
-            acc.push_str(k);
-            acc.push(':');
-            acc.push_str(v);
-            acc.push('\n');
-            acc
-        })
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn headers_test() {
-            let headers1 = vec![
-                ("X-OSS-Z-Name".to_string(), "Val1".to_string()),
-                ("X-OSS-OMeta-Name".to_string(), "val2".to_string()),
-                ("X-OSS-Meta-a".to_string(), "Cval".to_string()),
-                ("X-OSS-Meta-b".to_string(), "Eval".to_string()),
-                ("X-OSS-Neta-a".to_string(), "Dval".to_string()),
-            ];
-            let expect1 = "x-oss-meta-a:Cval\nx-oss-meta-b:Eval\nx-oss-neta-a:Dval\nx-oss-ometa-name:val2\nx-oss-z-name:Val1\n";
-            assert_eq!(make_ossheaders(headers1), expect1);
-            let headers2 = vec![];
-            assert_eq!(make_ossheaders(headers2), "");
-        }
-
-        #[test]
-        fn base64() {
-            let key1 = "key1";
-            let body1 = "body1";
-            assert_eq!(sign_base64(key1, body1), "u3fznj0yiE48+1xlkideoCqhhdc=")
         }
     }
 }
