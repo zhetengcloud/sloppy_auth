@@ -6,8 +6,12 @@ pub const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
 pub const GMT_DATETIME: &str = "%a, %d %b %Y %T GMT";
 
 //aliyun date format
-pub fn get_date() -> String {
+pub fn get_date_gmt() -> String {
     Utc::now().format(GMT_DATETIME).to_string()
+}
+
+pub fn get_date_long() -> String {
+    Utc::now().format(LONG_DATETIME).to_string()
 }
 
 pub fn md5(content: Vec<u8>) -> String {

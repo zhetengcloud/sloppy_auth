@@ -38,7 +38,7 @@ pub mod oss {
 
             let date_str: String = match date {
                 Some(t) => t.to_owned(),
-                None => util::get_date(),
+                None => util::get_date_gmt(),
             };
 
             StringToSign {

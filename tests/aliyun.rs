@@ -16,7 +16,7 @@ fn ali_putobject() {
 
     let url1 = format!("http://{}/{}", host, key);
 
-    let format_date = util::get_date();
+    let format_date = util::get_date_gmt();
 
     let content_md5 = util::md5(body1.as_bytes().to_vec());
     let content_type = "text/plain".to_string();
