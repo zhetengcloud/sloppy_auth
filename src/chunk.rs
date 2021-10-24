@@ -34,30 +34,30 @@ where
         }
 
         if self.finished {
-            Err(Error::new(
+            return Err(Error::new(
                 ErrorKind::ConnectionAborted,
                 "producer complete",
-            ))
-        } else {
-            let len1 = buf.len();
-            while self.buffer.len() < len1 {
-                match self.producer.next() {
-                    Some(bytes) => {
-                        self.buffer.extend(bytes);
-                    }
-                    None => break,
-                }
-            }
-            let len2 = std::cmp::min(len1, self.buffer.len());
-            let vec1: Vec<u8> = self.buffer.drain(0..len2).collect();
-            for (n, &x) in vec1.iter().enumerate() {
-                buf[n] = x;
-            }
-
-            self.finished = self.buffer.is_empty();
-
-            Ok(len2)
+            ));
         }
+
+        let len1 = buf.len();
+        while self.buffer.len() < len1 {
+            match self.producer.next() {
+                Some(bytes) => {
+                    self.buffer.extend(bytes);
+                }
+                None => break,
+            }
+        }
+        let len2 = std::cmp::min(len1, self.buffer.len());
+        let vec1: Vec<u8> = self.buffer.drain(0..len2).collect();
+        for (n, &x) in vec1.iter().enumerate() {
+            buf[n] = x;
+        }
+
+        self.finished = self.buffer.is_empty();
+
+        Ok(len2)
     }
 }
 

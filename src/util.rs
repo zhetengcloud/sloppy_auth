@@ -74,6 +74,19 @@ pub fn uri_encode(string: &str, encode_slash: bool) -> String {
     result
 }
 
+pub fn concat_chunk(chunk: Vec<u8>, sig: String) -> Vec<u8> {
+    let mut arr = Vec::new();
+    let rn = b"\r\n";
+    let str1 = format!("{:x};", chunk.len());
+    arr.extend_from_slice(str1.as_bytes());
+    let str2 = format!("chunk-signature={}", sig);
+    arr.extend_from_slice(str2.as_bytes());
+    arr.extend_from_slice(rn);
+    arr.extend_from_slice(&chunk);
+    arr.extend_from_slice(rn);
+    arr
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,5 +129,13 @@ mod tests {
             NaiveDateTime::parse_from_str(&str1, LONG_DATETIME).expect("naive date parse failed");
         let date2_utc = DateTime::<Utc>::from_utc(date2, Utc);
         println!("{:?}", date2_utc);
+    }
+
+    #[test]
+    fn util_concat() {
+        let data = [97u8; 1024];
+        let sig = "0055627c9e194cb4542bae2aa5492e3c1575bbb81b612b7d234b86a503ef5497";
+        let payload = concat_chunk(data.to_vec(), sig.to_string());
+        assert_eq!(payload[0..3].to_vec(), b"400".to_vec());
     }
 }
