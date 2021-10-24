@@ -176,6 +176,11 @@ pub mod s3 {
                 "66560".to_string(),
             );
             headers.insert("Content-Length".to_string(), "66824".to_string());
+            headers.insert(
+                "x-amz-storage-class".to_string(),
+                "REDUCED_REDUNDANCY".to_string(),
+            );
+            headers.insert("x-amz-date".to_string(), date_str.to_string());
 
             let signer = Sign {
                 method: "PUT",
