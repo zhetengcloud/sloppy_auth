@@ -3,10 +3,13 @@
  */
 pub mod s3 {
 
-    use crate::util::{self, uri_encode, Headers, LONG_DATETIME, SHORT_DATE};
+    use crate::util::{uri_encode, Headers, LONG_DATETIME, SHORT_DATE};
     use chrono::{DateTime, Utc};
     use ring::{digest, hmac};
     use url::Url;
+
+    pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
+    pub const STREAM_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 
     pub struct Sign<'a, T>
     where
@@ -46,7 +49,7 @@ pub mod s3 {
                 query_string = canonical_query_string(&self.url),
                 headers = self.headers.to_canonical(),
                 signed = self.signed_header_string(),
-                sha256 = util::UNSIGNED_PAYLOAD,
+                sha256 = UNSIGNED_PAYLOAD,
             )
         }
         pub fn sign(&'a self) -> String {

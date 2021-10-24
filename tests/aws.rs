@@ -4,7 +4,7 @@ mod util;
 mod tests {
     use super::util as u2;
     use log::debug;
-    use sloppy_auth::{aws::s3::Sign, util};
+    use sloppy_auth::{aws::s3, util};
     use std::collections::HashMap;
     use std::env;
     use url::Url;
@@ -29,11 +29,11 @@ mod tests {
         );
         headers.insert(
             "X-Amz-Content-Sha256".to_string(),
-            util::UNSIGNED_PAYLOAD.to_string(),
+            s3::UNSIGNED_PAYLOAD.to_string(),
         );
         headers.insert("Host".to_string(), host);
 
-        let s3 = Sign {
+        let s3 = s3::Sign {
             method: "PUT",
             url: Url::parse(&url2).expect("url parse failed"),
             datetime: &date,
