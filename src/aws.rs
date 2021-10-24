@@ -10,6 +10,8 @@ pub mod s3 {
 
     pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
     pub const STREAM_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
+    pub const AWS4_SHA256: &str = "AWS4-HMAC-SHA256";
+    pub const AWS_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
     pub struct Sign<'a, T>
     where
@@ -69,11 +71,57 @@ pub mod s3 {
         pub fn calc_seed_signature(&self) -> String {
             let canonical = self.canonical_request();
             let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
-            let signing_key = signing_key(self.datetime, self.secret_key, self.region, "s3");
-            let key = hmac::Key::new(hmac::HMAC_SHA256, &signing_key);
-            let tag = hmac::sign(&key, string_to_sign.as_bytes());
-            hex::encode(tag.as_ref())
+            hex_sha256(self.signing_key(), string_to_sign)
         }
+
+        pub fn chunk_string_to_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
+            let hash_empty = digest::digest(&digest::SHA256, b"");
+            let hash_data = digest::digest(&digest::SHA256, data.as_slice());
+            format!(
+                "{}\n{}\n{}\n{}\n{}\n{}",
+                AWS_SHA256_PAYLOAD,
+                self.datetime.format(LONG_DATETIME),
+                scope_string(self.datetime, self.region),
+                prev_sig,
+                hex::encode(hash_empty),
+                hex::encode(hash_data),
+            )
+        }
+
+        pub fn chunk_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
+            hex_sha256(
+                self.signing_key(),
+                self.chunk_string_to_sign(prev_sig, data),
+            )
+        }
+
+        pub fn signing_key(&self) -> Vec<u8> {
+            use hmac::{sign, Key, HMAC_SHA256};
+
+            let service = "s3";
+            let secret = format!("AWS4{}", self.secret_key);
+            let date_key = Key::new(HMAC_SHA256, secret.as_bytes());
+            let date_tag = sign(
+                &date_key,
+                self.datetime.format(SHORT_DATE).to_string().as_bytes(),
+            );
+
+            let region_key = Key::new(HMAC_SHA256, date_tag.as_ref());
+            let region_tag = sign(&region_key, self.region.as_bytes());
+
+            let service_key = Key::new(HMAC_SHA256, region_tag.as_ref());
+            let service_tag = sign(&service_key, service.as_bytes());
+
+            let signing_key = Key::new(HMAC_SHA256, service_tag.as_ref());
+            let signing_tag = sign(&signing_key, b"aws4_request");
+            signing_tag.as_ref().to_vec()
+        }
+    }
+
+    pub fn hex_sha256(key: Vec<u8>, s: String) -> String {
+        let key = hmac::Key::new(hmac::HMAC_SHA256, &key);
+        let tag = hmac::sign(&key, s.as_bytes());
+        hex::encode(tag.as_ref())
     }
 
     pub fn canonical_query_string(uri: &Url) -> String {
@@ -86,47 +134,18 @@ pub mod s3 {
     }
 
     pub fn scope_string(datetime: &DateTime<Utc>, region: &str) -> String {
-        format!(
-            "{date}/{region}/s3/aws4_request",
-            date = datetime.format(SHORT_DATE),
-            region = region
-        )
+        format!("{}/{}/s3/aws4_request", datetime.format(SHORT_DATE), region)
     }
 
     pub fn string_to_sign(datetime: &DateTime<Utc>, region: &str, canonical_req: &str) -> String {
         let hash = digest::digest(&digest::SHA256, canonical_req.as_bytes());
         format!(
-            "AWS4-HMAC-SHA256\n{}\n{}\n{}",
+            "{}\n{}\n{}\n{}",
+            AWS4_SHA256,
             datetime.format(LONG_DATETIME),
             scope_string(datetime, region),
             hex::encode(hash.as_ref())
         )
-    }
-
-    pub fn signing_key(
-        datetime: &DateTime<Utc>,
-        secret_key: &str,
-        region: &str,
-        service: &str,
-    ) -> Vec<u8> {
-        use hmac::{sign, Key, HMAC_SHA256};
-
-        let secret = format!("AWS4{}", secret_key);
-        let date_key = Key::new(HMAC_SHA256, secret.as_bytes());
-        let date_tag = sign(
-            &date_key,
-            datetime.format(SHORT_DATE).to_string().as_bytes(),
-        );
-
-        let region_key = Key::new(HMAC_SHA256, date_tag.as_ref());
-        let region_tag = sign(&region_key, region.to_string().as_bytes());
-
-        let service_key = Key::new(HMAC_SHA256, region_tag.as_ref());
-        let service_tag = sign(&service_key, service.as_bytes());
-
-        let signing_key = Key::new(HMAC_SHA256, service_tag.as_ref());
-        let signing_tag = sign(&signing_key, b"aws4_request");
-        signing_tag.as_ref().to_vec()
     }
 
     #[derive(Debug, PartialEq, Clone)]
@@ -150,6 +169,7 @@ pub mod s3 {
         use chrono::NaiveDateTime;
         use std::collections::HashMap;
 
+        //https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html
         #[test]
         fn sign_seed_signature() {
             let host = "s3.amazonaws.com";
@@ -196,6 +216,39 @@ pub mod s3 {
             let expected_seed_sig =
                 "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9";
             assert_eq!(signer.calc_seed_signature(), expected_seed_sig);
+
+            //chunk
+            let data1 = [97u8; 65536];
+            let data1_str =
+                signer.chunk_string_to_sign(expected_seed_sig.to_string(), data1.to_vec());
+            let expect_str1 = format!(
+                "{}\n{}\n{}\n{}\n{}\n{}",
+                "AWS4-HMAC-SHA256-PAYLOAD",
+                "20130524T000000Z",
+                "20130524/us-east-1/s3/aws4_request",
+                "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "bf718b6f653bebc184e1479f1935b8da974d701b893afcf49e701f3e2f9f9c5a"
+            );
+            assert_eq!(data1_str, expect_str1);
+            let data1_sign = signer.chunk_sign(expected_seed_sig.to_string(), data1.to_vec());
+            assert_eq!(
+                data1_sign,
+                "ad80c730a21e5b8d04586a2213dd63b9a0e99e0e2307b0ade35a65485a288648"
+            );
+
+            let data2 = [97u8; 1024];
+            let data2_sign = signer.chunk_sign(data1_sign, data2.to_vec());
+            assert_eq!(
+                data2_sign,
+                "0055627c9e194cb4542bae2aa5492e3c1575bbb81b612b7d234b86a503ef5497"
+            );
+
+            let data3_sign = signer.chunk_sign(data2_sign, vec![]);
+            assert_eq!(
+                data3_sign,
+                "b6c6ea8a5354eaf15b3cb7646744f4275b71ea724fed81ceb9323e279d449df9"
+            );
         }
     }
 
