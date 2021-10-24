@@ -139,4 +139,48 @@ pub mod s3 {
             }
         }
     }
+
+    pub mod api {
+        use std::io::Read;
+
+        pub struct Holder<T: Read> {
+            pub buf_size: usize,
+            pub reader: T,
+            prev_signature: Option<String>,
+        }
+
+        impl<T: Read> Holder<T> {
+            pub fn new(buf_size: usize, reader: T) -> Self {
+                Self {
+                    buf_size,
+                    reader,
+                    prev_signature: None,
+                }
+            }
+        }
+
+        impl<T: Read> Iterator for Holder<T> {
+            type Item = Vec<u8>;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                match self.prev_signature {
+                    Some(_) => {
+                        let mut buf = vec![0; self.buf_size];
+
+                        match self.reader.read(&mut buf) {
+                            Ok(_len) => {
+                                //let current_chunk_data: Vec<u8> = buf.drain(0..len).collect();
+
+                                Some(vec![])
+                            }
+                            Err(_) => None,
+                        }
+                    }
+                    None => {
+                        Some(vec![])
+                    }
+                }
+            }
+        }
+    }
 }
