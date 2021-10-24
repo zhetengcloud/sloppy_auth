@@ -88,3 +88,25 @@ mod tests {
         assert_eq!(er.kind(), ErrorKind::InvalidInput);
     }
 }
+
+pub mod adapter {
+    use std::io::Read;
+
+    pub struct Reader<T: Read> {
+        pub buf_size: usize,
+        pub reader: T,
+    }
+
+    impl<T: Read> Iterator for Reader<T> {
+        type Item = Vec<u8>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let mut buf = vec![0; self.buf_size];
+
+            match self.reader.read(&mut buf) {
+                Ok(len) => Some(buf.drain(0..len).collect()),
+                Err(_) => None,
+            }
+        }
+    }
+}
