@@ -3,7 +3,7 @@
  */
 pub mod s3 {
 
-    use crate::util::{self, Headers, LONG_DATETIME, SHORT_DATE};
+    use crate::util::{self, uri_encode, Headers, LONG_DATETIME, SHORT_DATE};
     use chrono::{DateTime, Utc};
     use ring::{digest, hmac};
     use url::Url;
@@ -67,27 +67,6 @@ pub mod s3 {
                 signature = signature
             )
         }
-    }
-
-    pub fn uri_encode(string: &str, encode_slash: bool) -> String {
-        let mut result = String::with_capacity(string.len() * 2);
-        for c in string.chars() {
-            match c {
-                'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '~' | '.' => result.push(c),
-                '/' if encode_slash => result.push_str("%2F"),
-                '/' if !encode_slash => result.push('/'),
-                _ => {
-                    result.push('%');
-                    result.push_str(
-                        &format!("{}", c)
-                            .bytes()
-                            .map(|b| format!("{:02X}", b))
-                            .collect::<String>(),
-                    );
-                }
-            }
-        }
-        result
     }
 
     pub fn canonical_query_string(uri: &Url) -> String {
