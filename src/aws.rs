@@ -53,23 +53,26 @@ pub mod s3 {
             ]
             .join("\n")
         }
-        pub fn sign(&self) -> String {
-            let canonical = self.canonical_request();
-            let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
-            let signing_key = signing_key(self.datetime, self.secret_key, self.region, "s3");
-            let key = hmac::Key::new(hmac::HMAC_SHA256, &signing_key);
-            let tag = hmac::sign(&key, string_to_sign.as_bytes());
-            let signature = hex::encode(tag.as_ref());
-            let signed_headers = self.signed_header_string();
 
+        //Authorization header
+        pub fn sign(&self) -> String {
             format!(
                 "AWS4-HMAC-SHA256 Credential={access_key}/{scope},\
              SignedHeaders={signed_headers},Signature={signature}",
                 access_key = self.access_key,
                 scope = scope_string(self.datetime, self.region),
-                signed_headers = signed_headers,
-                signature = signature
+                signed_headers = self.signed_header_string(),
+                signature = self.calc_seed_signature()
             )
+        }
+
+        pub fn calc_seed_signature(&self) -> String {
+            let canonical = self.canonical_request();
+            let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
+            let signing_key = signing_key(self.datetime, self.secret_key, self.region, "s3");
+            let key = hmac::Key::new(hmac::HMAC_SHA256, &signing_key);
+            let tag = hmac::sign(&key, string_to_sign.as_bytes());
+            hex::encode(tag.as_ref())
         }
     }
 
@@ -93,10 +96,10 @@ pub mod s3 {
     pub fn string_to_sign(datetime: &DateTime<Utc>, region: &str, canonical_req: &str) -> String {
         let hash = digest::digest(&digest::SHA256, canonical_req.as_bytes());
         format!(
-            "AWS4-HMAC-SHA256\n{timestamp}\n{scope}\n{hash}",
-            timestamp = datetime.format(LONG_DATETIME),
-            scope = scope_string(datetime, region),
-            hash = hex::encode(hash.as_ref())
+            "AWS4-HMAC-SHA256\n{}\n{}\n{}",
+            datetime.format(LONG_DATETIME),
+            scope_string(datetime, region),
+            hex::encode(hash.as_ref())
         )
     }
 
@@ -106,22 +109,23 @@ pub mod s3 {
         region: &str,
         service: &str,
     ) -> Vec<u8> {
-        let secret = String::from("AWS4") + secret_key;
+        use hmac::{sign, Key, HMAC_SHA256};
 
-        let date_key = hmac::Key::new(hmac::HMAC_SHA256, secret.as_bytes());
-        let date_tag = hmac::sign(
+        let secret = format!("AWS4{}", secret_key);
+        let date_key = Key::new(HMAC_SHA256, secret.as_bytes());
+        let date_tag = sign(
             &date_key,
             datetime.format(SHORT_DATE).to_string().as_bytes(),
         );
 
-        let region_key = hmac::Key::new(hmac::HMAC_SHA256, date_tag.as_ref());
-        let region_tag = hmac::sign(&region_key, region.to_string().as_bytes());
+        let region_key = Key::new(HMAC_SHA256, date_tag.as_ref());
+        let region_tag = sign(&region_key, region.to_string().as_bytes());
 
-        let service_key = hmac::Key::new(hmac::HMAC_SHA256, region_tag.as_ref());
-        let service_tag = hmac::sign(&service_key, service.as_bytes());
+        let service_key = Key::new(HMAC_SHA256, region_tag.as_ref());
+        let service_tag = sign(&service_key, service.as_bytes());
 
-        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, service_tag.as_ref());
-        let signing_tag = hmac::sign(&signing_key, b"aws4_request");
+        let signing_key = Key::new(HMAC_SHA256, service_tag.as_ref());
+        let signing_tag = sign(&signing_key, b"aws4_request");
         signing_tag.as_ref().to_vec()
     }
 
@@ -140,26 +144,79 @@ pub mod s3 {
         }
     }
 
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use chrono::NaiveDateTime;
+        use std::collections::HashMap;
+
+        #[test]
+        fn sign_seed_signature() {
+            let host = "s3.amazonaws.com";
+            let s3_buck = "examplebucket";
+            let s3_key = "chunkObject.txt";
+            let full_url = format!("http://{}/{}/{}", host, s3_buck, s3_key);
+            let date_str = "20130524T000000Z";
+            let n_date =
+                NaiveDateTime::parse_from_str(date_str, LONG_DATETIME).expect("date parse failed");
+            let date = DateTime::<Utc>::from_utc(n_date, Utc);
+            let mut headers = HashMap::new();
+            headers.insert("Host".to_string(), host.to_string());
+            headers.insert(
+                "x-amz-storage-class".to_string(),
+                "REDUCED_REDUNDANCY".to_string(),
+            );
+            headers.insert(
+                "x-amz-content-sha256".to_string(),
+                STREAM_PAYLOAD.to_string(),
+            );
+            headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
+            headers.insert(
+                "x-amz-decoded-content-length".to_string(),
+                "66560".to_string(),
+            );
+            headers.insert("Content-Length".to_string(), "66824".to_string());
+
+            let signer = Sign {
+                method: "PUT",
+                url: Url::parse(&full_url).expect("url parse failed"),
+                datetime: &date,
+                region: "us-east-1",
+                access_key: "AKIAIOSFODNN7EXAMPLE",
+                secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                headers,
+                transfer_mode: Transfer::Multiple,
+            };
+
+            let expected_seed_sig =
+                "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9";
+            assert_eq!(signer.calc_seed_signature(), expected_seed_sig);
+        }
+    }
+
     pub mod api {
+        use super::*;
         use std::io::Read;
 
-        pub struct Holder<T: Read> {
+        pub struct Holder<'a, T: Read, H: Headers> {
             pub buf_size: usize,
             pub reader: T,
             prev_signature: Option<String>,
+            signer: Sign<'a, H>,
         }
 
-        impl<T: Read> Holder<T> {
-            pub fn new(buf_size: usize, reader: T) -> Self {
+        impl<'a, R: Read, H: Headers> Holder<'a, R, H> {
+            pub fn new(buf_size: usize, reader: R, signer: Sign<'a, H>) -> Self {
                 Self {
                     buf_size,
                     reader,
                     prev_signature: None,
+                    signer,
                 }
             }
         }
 
-        impl<T: Read> Iterator for Holder<T> {
+        impl<'a, R: Read, H: Headers> Iterator for Holder<'a, R, H> {
             type Item = Vec<u8>;
 
             fn next(&mut self) -> Option<Self::Item> {
@@ -176,7 +233,10 @@ pub mod s3 {
                             Err(_) => None,
                         }
                     }
-                    None => Some(vec![]),
+                    None => {
+                        let data = self.signer.calc_seed_signature();
+                        Some(data.as_bytes().to_vec())
+                    }
                 }
             }
         }

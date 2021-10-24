@@ -4,7 +4,7 @@ mod util;
 mod tests {
     use super::util as u2;
     use log::debug;
-    use sloppy_auth::{aws::s3, util, chunk};
+    use sloppy_auth::{aws::s3, chunk, util};
     use std::collections::HashMap;
     use std::env;
     use url::Url;
@@ -74,9 +74,11 @@ mod tests {
         use s3::api::Holder;
         u2::init_log();
 
+        /*
         let data = ureq::get("").call().expect("get url1 failed").into_reader();
-        let holder = Holder::new(10,data);
+        let holder = Holder::new(10, data);
         let chunk = chunk::Chunk::new(holder);
         ureq::put("").send(chunk).expect("http failed");
+        */
     }
 }

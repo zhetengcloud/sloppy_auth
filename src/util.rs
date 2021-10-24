@@ -104,4 +104,17 @@ mod tests {
         let body1 = "body1";
         assert_eq!(sign_base64(key1, body1), "u3fznj0yiE48+1xlkideoCqhhdc=")
     }
+
+    #[test]
+    fn util_date() {
+        use chrono::{DateTime, NaiveDateTime, Utc};
+
+        let date: DateTime<Utc> = Utc::now();
+        let str1 = date.format(LONG_DATETIME).to_string();
+
+        let date2 =
+            NaiveDateTime::parse_from_str(&str1, LONG_DATETIME).expect("naive date parse failed");
+        let date2_utc = DateTime::<Utc>::from_utc(date2, Utc);
+        println!("{:?}", date2_utc);
+    }
 }
