@@ -29,7 +29,7 @@ pub mod s3 {
     where
         T: Headers,
     {
-        pub fn signed_header_string(&'a self) -> String {
+        pub fn signed_header_string(&self) -> String {
             let mut keys = self
                 .headers
                 .clone()
@@ -40,20 +40,20 @@ pub mod s3 {
             keys.join(";")
         }
 
-        pub fn canonical_request(&'a self) -> String {
-            let url: &str = self.url.path().into();
+        pub fn canonical_request(&self) -> String {
+            let url: String = self.url.path().into();
 
-            format!(
-                "{method}\n{uri}\n{query_string}\n{headers}\n{signed}\n{sha256}",
-                method = self.method,
-                uri = url,
-                query_string = canonical_query_string(&self.url),
-                headers = self.headers.to_canonical(),
-                signed = self.signed_header_string(),
-                sha256 = self.transfer_mode.content_sha256(),
-            )
+            vec![
+                self.method.to_string(),
+                url,
+                canonical_query_string(&self.url),
+                self.headers.to_canonical(),
+                self.signed_header_string(),
+                self.transfer_mode.content_sha256().to_string(),
+            ]
+            .join("\n")
         }
-        pub fn sign(&'a self) -> String {
+        pub fn sign(&self) -> String {
             let canonical = self.canonical_request();
             let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
             let signing_key = signing_key(self.datetime, self.secret_key, self.region, "s3");
@@ -176,9 +176,7 @@ pub mod s3 {
                             Err(_) => None,
                         }
                     }
-                    None => {
-                        Some(vec![])
-                    }
+                    None => Some(vec![]),
                 }
             }
         }
