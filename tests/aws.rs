@@ -41,6 +41,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
+            transfer_mode: s3::Transfer::Single,
         };
 
         let signature = s3.sign();

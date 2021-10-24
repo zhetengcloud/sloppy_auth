@@ -22,6 +22,7 @@ pub mod s3 {
         pub access_key: &'a str,
         pub secret_key: &'a str,
         pub headers: T,
+        pub transfer_mode: Transfer,
     }
 
     impl<'a, T> Sign<'a, T>
@@ -49,7 +50,7 @@ pub mod s3 {
                 query_string = canonical_query_string(&self.url),
                 headers = self.headers.to_canonical(),
                 signed = self.signed_header_string(),
-                sha256 = UNSIGNED_PAYLOAD,
+                sha256 = self.transfer_mode.content_sha256(),
             )
         }
         pub fn sign(&'a self) -> String {
@@ -122,5 +123,20 @@ pub mod s3 {
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, service_tag.as_ref());
         let signing_tag = hmac::sign(&signing_key, b"aws4_request");
         signing_tag.as_ref().to_vec()
+    }
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum Transfer {
+        Single,
+        Multiple,
+    }
+
+    impl Transfer {
+        pub fn content_sha256(&self) -> &'static str {
+            match self {
+                Self::Single => UNSIGNED_PAYLOAD,
+                Self::Multiple => STREAM_PAYLOAD,
+            }
+        }
     }
 }
