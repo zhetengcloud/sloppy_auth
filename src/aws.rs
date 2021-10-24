@@ -255,6 +255,7 @@ pub mod s3 {
     pub mod api {
         use super::*;
         use std::io::Read;
+        use crate::util;
 
         pub struct Holder<'a, T: Read, H: Headers> {
             pub buf_size: usize,
@@ -278,23 +279,22 @@ pub mod s3 {
             type Item = Vec<u8>;
 
             fn next(&mut self) -> Option<Self::Item> {
-                match self.prev_signature {
-                    Some(_) => {
-                        let mut buf = vec![0; self.buf_size];
+                let prev = match &self.prev_signature {
+                    Some(s) => s.clone(),
+                    None => self.signer.calc_seed_signature()
+                };
 
-                        match self.reader.read(&mut buf) {
-                            Ok(_len) => {
-                                //let current_chunk_data: Vec<u8> = buf.drain(0..len).collect();
+                let mut buf = vec![0; self.buf_size];
 
-                                Some(vec![])
-                            }
-                            Err(_) => None,
-                        }
+                match self.reader.read(&mut buf) {
+                    Ok(len) => {
+                        let data: Vec<u8> = buf.drain(0..len).collect();
+                        let new_sign = self.signer.chunk_sign(prev, data.clone());
+                        self.prev_signature = Some(new_sign.clone());
+                        let chunk = util::concat_chunk(data, new_sign);
+                        Some(chunk)
                     }
-                    None => {
-                        let data = self.signer.calc_seed_signature();
-                        Some(data.as_bytes().to_vec())
-                    }
+                    Err(_) => None,
                 }
             }
         }

@@ -74,11 +74,56 @@ mod tests {
         use s3::api::Holder;
         u2::init_log();
 
-        /*
-        let data = ureq::get("").call().expect("get url1 failed").into_reader();
-        let holder = Holder::new(10, data);
+        let access_key = env::var("aws_access_key").expect("access key empty");
+        let access_secret = env::var("aws_access_secret").expect("access secret empty");
+        let url1 = env::var("test_url1").expect("test url1 empty");
+
+        let response1 = ureq::get(&url1).call().expect("get url1 failed");
+        let content_len: String = response1
+            .header("Content-Length")
+            .expect("content length empty")
+            .to_string();
+        let rd1 = response1.into_reader();
+
+        let host = "s3.amazonaws.com";
+        let s3_buck = "sls11";
+        let s3_key = "test1.mp3";
+        let host1 = format!("{}.{}", s3_buck, host);
+        let full_url = format!("http://{}/{}", host1, s3_key);
+        let date = chrono::Utc::now();
+        let mut headers = HashMap::new();
+        headers.insert("Host".to_string(), host1);
+        headers.insert(
+            "x-amz-content-sha256".to_string(),
+            s3::STREAM_PAYLOAD.to_string(),
+        );
+        headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
+        headers.insert("x-amz-decoded-content-length".to_string(), content_len);
+        headers.insert("Transfer-Encoding".to_string(), "chunked".to_string());
+        headers.insert(
+            "x-amz-date".to_string(),
+            date.format(util::LONG_DATETIME).to_string(),
+        );
+
+        let signer = s3::Sign {
+            method: "PUT",
+            url: Url::parse(&full_url).expect("url parse failed"),
+            datetime: &date,
+            region: "us-east-1",
+            access_key: &access_key,
+            secret_key: &access_secret,
+            headers: headers.clone(),
+            transfer_mode: s3::Transfer::Multiple,
+        };
+
+        headers.insert("Authorization".to_string(), signer.sign());
+
+        let holder = Holder::new(128 * 1024, rd1, signer);
         let chunk = chunk::Chunk::new(holder);
-        ureq::put("").send(chunk).expect("http failed");
-        */
+        let mut request2 = ureq::put(&full_url);
+        for (k, v) in headers {
+            request2 = request2.set(&k, &v);
+        }
+        request2.send(chunk).expect("http failed");
     }
 }
