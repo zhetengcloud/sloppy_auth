@@ -53,7 +53,7 @@ where
         }
 
         self.finished = self.buffer.is_empty();
-        log::debug!(
+        log::trace!(
             "buffer len {}, finished {}",
             self.buffer.len(),
             self.finished
