@@ -118,12 +118,22 @@ mod tests {
 
         headers.insert("Authorization".to_string(), signer.sign());
 
-        let holder = Holder::new(128 * 1024, rd1, signer);
+        let holder = Holder::new(6 * 1024 * 1024, rd1, signer);
         let chunk = chunk::Chunk::new(holder);
         let mut request2 = ureq::put(&full_url);
         for (k, v) in headers {
             request2 = request2.set(&k, &v);
         }
-        request2.send(chunk).expect("http failed");
+        match request2.send(chunk) {
+            Ok(resp) => {
+                log::debug!("ok {}", resp.status());
+            }
+            Err(ureq::Error::Status(code, _response)) => {
+                log::debug!("error code {}", code);
+            }
+            Err(ureq::Error::Transport(t)) => {
+                log::debug!("transport {:?}", t);
+            }
+        }
     }
 }

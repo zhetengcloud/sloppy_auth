@@ -18,7 +18,7 @@ where
     pub fn new(producer: I) -> Self {
         Self {
             finished: false,
-            buffer: Vec::with_capacity(32 * 1024),
+            buffer: Vec::with_capacity(1024 * 1024),
             producer,
         }
     }
@@ -34,10 +34,7 @@ where
         }
 
         if self.finished {
-            return Err(Error::new(
-                ErrorKind::ConnectionAborted,
-                "producer complete",
-            ));
+            return Ok(0);
         }
 
         let len1 = buf.len();
@@ -56,6 +53,11 @@ where
         }
 
         self.finished = self.buffer.is_empty();
+        log::debug!(
+            "buffer len {}, finished {}",
+            self.buffer.len(),
+            self.finished
+        );
 
         Ok(len2)
     }
@@ -88,7 +90,7 @@ mod tests {
         assert_eq!(er.kind(), ErrorKind::InvalidInput);
     }
 }
-
+/*
 pub mod adapter {
     use std::io::Read;
 
@@ -110,3 +112,4 @@ pub mod adapter {
         }
     }
 }
+*/
