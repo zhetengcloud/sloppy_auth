@@ -1,3 +1,4 @@
+// https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
 use crate::util::{uri_encode, Headers, LONG_DATETIME, SHORT_DATE};
 use chrono::{DateTime, Utc};
 use ring::{digest, hmac};
@@ -10,6 +11,7 @@ pub struct Sign<'a, T>
 where
     T: Headers,
 {
+    pub service: &'a str,
     pub method: &'a str,
     pub url: Url,
     pub datetime: &'a DateTime<Utc>,
@@ -17,7 +19,7 @@ where
     pub access_key: &'a str,
     pub secret_key: &'a str,
     pub headers: T,
-    pub hash_request: String,
+    pub hash_request_payload: &'a str,
 }
 
 impl<'a, T> Sign<'a, T>
@@ -41,10 +43,10 @@ where
         vec![
             self.method.to_string(),
             url,
-            canonical_query_string(&self.url),
+            self.url.canonical_query_string(),
             self.headers.to_canonical(),
             self.signed_header_string(),
-            self.hash_request.clone(),
+            self.hash_request_payload.to_string(),
         ]
         .join("\n")
     }
@@ -55,16 +57,14 @@ where
             "{} Credential={}/{},SignedHeaders={},Signature={}",
             AWS4_SHA256,
             self.access_key,
-            scope_string(self.datetime, self.region),
+            self.scope_string(),
             self.signed_header_string(),
             self.calc_seed_signature()
         )
     }
 
     pub fn calc_seed_signature(&self) -> String {
-        let canonical = self.canonical_request();
-        let string_to_sign = string_to_sign(self.datetime, self.region, &canonical);
-        hex_sha256(self.signing_key(), string_to_sign)
+        hex_sha256(self.signing_key(), self.string_to_sign())
     }
 
     pub fn chunk_string_to_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
@@ -74,7 +74,7 @@ where
             "{}\n{}\n{}\n{}\n{}\n{}",
             AWS_SHA256_PAYLOAD,
             self.datetime.format(LONG_DATETIME),
-            scope_string(self.datetime, self.region),
+            self.scope_string(),
             prev_sig,
             hex::encode(hash_empty),
             hex::encode(hash_data),
@@ -91,7 +91,6 @@ where
     pub fn signing_key(&self) -> Vec<u8> {
         use hmac::{sign, Key, HMAC_SHA256};
 
-        let service = "s3";
         let secret = format!("AWS4{}", self.secret_key);
         let date_key = Key::new(HMAC_SHA256, secret.as_bytes());
         let date_tag = sign(
@@ -103,11 +102,32 @@ where
         let region_tag = sign(&region_key, self.region.as_bytes());
 
         let service_key = Key::new(HMAC_SHA256, region_tag.as_ref());
-        let service_tag = sign(&service_key, service.as_bytes());
+        let service_tag = sign(&service_key, self.service.as_bytes());
 
         let signing_key = Key::new(HMAC_SHA256, service_tag.as_ref());
         let signing_tag = sign(&signing_key, b"aws4_request");
         signing_tag.as_ref().to_vec()
+    }
+
+    //credential scope value
+    pub fn scope_string(&self) -> String {
+        format!(
+            "{}/{}/{}/aws4_request",
+            self.datetime.format(SHORT_DATE),
+            self.region,
+            self.service,
+        )
+    }
+
+    pub fn string_to_sign(&self) -> String {
+        let hash = digest::digest(&digest::SHA256, self.canonical_request().as_bytes());
+        format!(
+            "{}\n{}\n{}\n{}",
+            AWS4_SHA256,
+            self.datetime.format(LONG_DATETIME),
+            self.scope_string(),
+            hex::encode(hash.as_ref())
+        )
     }
 }
 
@@ -117,26 +137,17 @@ pub fn hex_sha256(key: Vec<u8>, s: String) -> String {
     hex::encode(tag.as_ref())
 }
 
-pub fn canonical_query_string(uri: &Url) -> String {
-    let mut keyvalues = uri
-        .query_pairs()
-        .map(|(key, value)| uri_encode(&key, true) + "=" + &uri_encode(&value, true))
-        .collect::<Vec<String>>();
-    keyvalues.sort();
-    keyvalues.join("&")
+trait Canonical {
+    fn canonical_query_string(&self) -> String;
 }
 
-pub fn scope_string(datetime: &DateTime<Utc>, region: &str) -> String {
-    format!("{}/{}/s3/aws4_request", datetime.format(SHORT_DATE), region)
-}
-
-pub fn string_to_sign(datetime: &DateTime<Utc>, region: &str, canonical_req: &str) -> String {
-    let hash = digest::digest(&digest::SHA256, canonical_req.as_bytes());
-    format!(
-        "{}\n{}\n{}\n{}",
-        AWS4_SHA256,
-        datetime.format(LONG_DATETIME),
-        scope_string(datetime, region),
-        hex::encode(hash.as_ref())
-    )
+impl Canonical for Url {
+    fn canonical_query_string(&self) -> String {
+        let mut keyvalues = self
+            .query_pairs()
+            .map(|(key, value)| uri_encode(&key, true) + "=" + &uri_encode(&value, true))
+            .collect::<Vec<String>>();
+        keyvalues.sort();
+        keyvalues.join("&")
+    }
 }

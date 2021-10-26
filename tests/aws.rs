@@ -37,6 +37,7 @@ mod tests {
         headers.insert("Host".to_string(), host);
 
         let s3 = auth::Sign {
+            service: "s3",
             method: "PUT",
             url: Url::parse(&url2).expect("url parse failed"),
             datetime: &date,
@@ -44,7 +45,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            hash_request: s3::Transfer::Single.content_sha256().to_string(),
+            hash_request_payload: s3::Transfer::Single.content_sha256(),
         };
 
         let signature = s3.sign();
@@ -109,6 +110,7 @@ mod tests {
         );
 
         let signer = auth::Sign {
+            service: "s3",
             method: "PUT",
             url: Url::parse(&full_url).expect("url parse failed"),
             datetime: &date,
@@ -116,7 +118,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            hash_request: s3::Transfer::Multiple.content_sha256().to_string(),
+            hash_request_payload: s3::Transfer::Multiple.content_sha256(),
         };
 
         headers.insert("Authorization".to_string(), signer.sign());

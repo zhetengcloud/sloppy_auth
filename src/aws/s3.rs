@@ -145,6 +145,7 @@ mod tests {
         headers.insert("x-amz-date".to_string(), date_str.to_string());
 
         let signer = Sign {
+            service: "s3",
             method: "PUT",
             url: Url::parse(&full_url).expect("url parse failed"),
             datetime: &date,
@@ -152,7 +153,7 @@ mod tests {
             access_key: "AKIAIOSFODNN7EXAMPLE",
             secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
             headers,
-            hash_request: Transfer::Multiple.content_sha256().to_string(),
+            hash_request_payload: Transfer::Multiple.content_sha256(),
         };
 
         let expected_seed_sig = "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9";
