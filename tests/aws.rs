@@ -4,7 +4,10 @@ mod util;
 mod tests {
     use super::util as u2;
     use log::debug;
-    use sloppy_auth::{aws::s3, chunk, util};
+    use sloppy_auth::{
+        aws::{auth, s3},
+        chunk, util,
+    };
     use std::collections::HashMap;
     use std::env;
     use url::Url;
@@ -29,11 +32,11 @@ mod tests {
         );
         headers.insert(
             "X-Amz-Content-Sha256".to_string(),
-            s3::UNSIGNED_PAYLOAD.to_string(),
+            auth::UNSIGNED_PAYLOAD.to_string(),
         );
         headers.insert("Host".to_string(), host);
 
-        let s3 = s3::Sign {
+        let s3 = auth::Sign {
             method: "PUT",
             url: Url::parse(&url2).expect("url parse failed"),
             datetime: &date,
@@ -41,7 +44,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            transfer_mode: s3::Transfer::Single,
+            transfer_mode: auth::Transfer::Single,
         };
 
         let signature = s3.sign();
@@ -71,7 +74,7 @@ mod tests {
 
     #[test]
     fn aws_s3_putobject_stream() {
-        use s3::api::Holder;
+        use s3::Holder;
         u2::init_log();
 
         let access_key = env::var("aws_access_key").expect("access key empty");
@@ -95,7 +98,7 @@ mod tests {
         headers.insert("Host".to_string(), host1);
         headers.insert(
             "x-amz-content-sha256".to_string(),
-            s3::STREAM_PAYLOAD.to_string(),
+            auth::STREAM_PAYLOAD.to_string(),
         );
         headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
         headers.insert("x-amz-decoded-content-length".to_string(), content_len);
@@ -105,7 +108,7 @@ mod tests {
             date.format(util::LONG_DATETIME).to_string(),
         );
 
-        let signer = s3::Sign {
+        let signer = auth::Sign {
             method: "PUT",
             url: Url::parse(&full_url).expect("url parse failed"),
             datetime: &date,
@@ -113,7 +116,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            transfer_mode: s3::Transfer::Multiple,
+            transfer_mode: auth::Transfer::Multiple,
         };
 
         headers.insert("Authorization".to_string(), signer.sign());
