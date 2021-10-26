@@ -54,12 +54,12 @@ where
     //Authorization header
     pub fn sign(&self) -> String {
         format!(
-            "AWS4-HMAC-SHA256 Credential={access_key}/{scope},\
-             SignedHeaders={signed_headers},Signature={signature}",
-            access_key = self.access_key,
-            scope = scope_string(self.datetime, self.region),
-            signed_headers = self.signed_header_string(),
-            signature = self.calc_seed_signature()
+            "{} Credential={}/{},SignedHeaders={},Signature={}",
+            AWS4_SHA256,
+            self.access_key,
+            scope_string(self.datetime, self.region),
+            self.signed_header_string(),
+            self.calc_seed_signature()
         )
     }
 
