@@ -32,7 +32,7 @@ mod tests {
         );
         headers.insert(
             "X-Amz-Content-Sha256".to_string(),
-            auth::UNSIGNED_PAYLOAD.to_string(),
+            s3::UNSIGNED_PAYLOAD.to_string(),
         );
         headers.insert("Host".to_string(), host);
 
@@ -44,7 +44,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            transfer_mode: auth::Transfer::Single,
+            hash_request: s3::Transfer::Single.content_sha256().to_string(),
         };
 
         let signature = s3.sign();
@@ -98,7 +98,7 @@ mod tests {
         headers.insert("Host".to_string(), host1);
         headers.insert(
             "x-amz-content-sha256".to_string(),
-            auth::STREAM_PAYLOAD.to_string(),
+            s3::STREAM_PAYLOAD.to_string(),
         );
         headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
         headers.insert("x-amz-decoded-content-length".to_string(), content_len);
@@ -116,7 +116,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            transfer_mode: auth::Transfer::Multiple,
+            hash_request: s3::Transfer::Multiple.content_sha256().to_string(),
         };
 
         headers.insert("Authorization".to_string(), signer.sign());
