@@ -8,21 +8,6 @@ pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 pub const STREAM_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 pub const AWS_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Transfer {
-    Single,
-    Multiple,
-}
-
-impl Transfer {
-    pub fn content_sha256(&self) -> &'static str {
-        match self {
-            Self::Single => UNSIGNED_PAYLOAD,
-            Self::Multiple => STREAM_PAYLOAD,
-        }
-    }
-}
-
 pub struct Holder<'a, T: Read, H: Headers> {
     pub buf_size: usize,
     pub reader: T,
@@ -184,7 +169,7 @@ mod tests {
             access_key: "AKIAIOSFODNN7EXAMPLE",
             secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
             headers,
-            hash_request_payload: Transfer::Multiple.content_sha256(),
+            hash_request_payload: STREAM_PAYLOAD,
         };
 
         let expected_seed_sig = "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9";

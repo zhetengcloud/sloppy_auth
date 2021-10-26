@@ -45,7 +45,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            hash_request_payload: s3::Transfer::Single.content_sha256(),
+            hash_request_payload: s3::UNSIGNED_PAYLOAD,
         };
 
         let signature = s3.sign();
@@ -118,7 +118,7 @@ mod tests {
             access_key: &access_key,
             secret_key: &access_secret,
             headers: headers.clone(),
-            hash_request_payload: s3::Transfer::Multiple.content_sha256(),
+            hash_request_payload: s3::STREAM_PAYLOAD,
         };
 
         headers.insert("Authorization".to_string(), signer.sign());
