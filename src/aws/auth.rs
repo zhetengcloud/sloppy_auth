@@ -1,11 +1,11 @@
 // https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
-use crate::util::{uri_encode, Headers, LONG_DATETIME, SHORT_DATE};
+use crate::util::{self, uri_encode, Headers, LONG_DATETIME, SHORT_DATE};
 use chrono::{DateTime, Utc};
 use ring::{digest, hmac};
 use url::Url;
 
+//Hash algorithm
 pub const AWS4_SHA256: &str = "AWS4-HMAC-SHA256";
-pub const AWS_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
 pub struct Sign<'a, T>
 where
@@ -64,28 +64,7 @@ where
     }
 
     pub fn calc_seed_signature(&self) -> String {
-        hex_sha256(self.signing_key(), self.string_to_sign())
-    }
-
-    pub fn chunk_string_to_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
-        let hash_empty = digest::digest(&digest::SHA256, b"");
-        let hash_data = digest::digest(&digest::SHA256, data.as_slice());
-        format!(
-            "{}\n{}\n{}\n{}\n{}\n{}",
-            AWS_SHA256_PAYLOAD,
-            self.datetime.format(LONG_DATETIME),
-            self.scope_string(),
-            prev_sig,
-            hex::encode(hash_empty),
-            hex::encode(hash_data),
-        )
-    }
-
-    pub fn chunk_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
-        hex_sha256(
-            self.signing_key(),
-            self.chunk_string_to_sign(prev_sig, data),
-        )
+        util::hex_sha256(self.signing_key(), self.string_to_sign())
     }
 
     pub fn signing_key(&self) -> Vec<u8> {
@@ -129,12 +108,6 @@ where
             hex::encode(hash.as_ref())
         )
     }
-}
-
-pub fn hex_sha256(key: Vec<u8>, s: String) -> String {
-    let key = hmac::Key::new(hmac::HMAC_SHA256, &key);
-    let tag = hmac::sign(&key, s.as_bytes());
-    hex::encode(tag.as_ref())
 }
 
 trait Canonical {

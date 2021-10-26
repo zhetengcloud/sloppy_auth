@@ -87,6 +87,12 @@ pub fn concat_chunk(chunk: Vec<u8>, sig: String) -> Vec<u8> {
     arr
 }
 
+pub fn hex_sha256(key: Vec<u8>, s: String) -> String {
+    let key = hmac::Key::new(hmac::HMAC_SHA256, &key);
+    let tag = hmac::sign(&key, s.as_bytes());
+    hex::encode(tag.as_ref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

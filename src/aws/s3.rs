@@ -1,11 +1,12 @@
 use crate::{
     aws::auth::Sign,
-    util::{self, Headers},
+    util::{self, hex_sha256, Headers},
 };
 use std::io::Read;
 
 pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 pub const STREAM_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
+pub const AWS_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Transfer {
@@ -100,6 +101,36 @@ impl<'a, R: Read, H: Headers> Iterator for Holder<'a, R, H> {
                 }
             }
         }
+    }
+}
+
+pub trait S3Chunk {
+    fn chunk_sign(&self, prev_signature: String, data: Vec<u8>) -> String;
+    fn chunk_string_to_sign(&self, prev_signature: String, data: Vec<u8>) -> String;
+}
+
+use ring::digest;
+
+impl<'a, T: Headers> S3Chunk for Sign<'a, T> {
+    fn chunk_string_to_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
+        let hash_empty = digest::digest(&digest::SHA256, b"");
+        let hash_data = digest::digest(&digest::SHA256, data.as_slice());
+        format!(
+            "{}\n{}\n{}\n{}\n{}\n{}",
+            AWS_SHA256_PAYLOAD,
+            self.datetime.format(util::LONG_DATETIME),
+            self.scope_string(),
+            prev_sig,
+            hex::encode(hash_empty),
+            hex::encode(hash_data),
+        )
+    }
+
+    fn chunk_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
+        hex_sha256(
+            self.signing_key(),
+            self.chunk_string_to_sign(prev_sig, data),
+        )
     }
 }
 
