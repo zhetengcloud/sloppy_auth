@@ -182,11 +182,13 @@ mod tests {
     #[test]
     fn aws_s3_client_save_remote() {
         u2::init_log();
+        let test_url = env::var("test_url1");
         let client = s3::client::Client::new("us-east-1".to_string());
 
         let url1 = format!("http://httpbin.org/bytes/{}", 50001);
+        let url1 = test_url.unwrap_or(url1);
         client
-            .save_remote(&url1, 128, "sls11", "test5")
-            .expect("put object single failed");
+            .save_remote(&url1, 30 * 1024, "dianliao", "dianliao1377009848")
+            .expect("put object stream failed");
     }
 }

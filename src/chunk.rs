@@ -1,4 +1,4 @@
-use std::io::{Error, ErrorKind, Read, Result};
+use std::io::{Read, Result};
 use std::iter::Iterator;
 
 #[derive(Debug)]
@@ -9,6 +9,7 @@ where
     finished: bool,
     buffer: Vec<u8>,
     producer: I,
+    total_bytes: usize,
 }
 
 impl<I> Chunk<I>
@@ -20,6 +21,7 @@ where
             finished: false,
             buffer: Vec::with_capacity(1024 * 1024),
             producer,
+            total_bytes: 0,
         }
     }
 }
@@ -29,11 +31,7 @@ where
     I: Iterator<Item = Vec<u8>>,
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        if buf.is_empty() {
-            return Err(Error::new(ErrorKind::InvalidInput, "input buf empty"));
-        }
-
-        if self.finished {
+        if self.finished || buf.is_empty() {
             return Ok(0);
         }
 
@@ -41,11 +39,22 @@ where
         while self.buffer.len() < len1 {
             match self.producer.next() {
                 Some(bytes) => {
+                    //for debug only
+                    self.total_bytes += bytes.len();
+
                     self.buffer.extend(bytes);
                 }
                 None => break,
             }
         }
+
+        log::trace!(
+            "buf len {}, buffer {}, total {}",
+            buf.len(),
+            self.buffer.len(),
+            self.total_bytes
+        );
+
         let len2 = std::cmp::min(len1, self.buffer.len());
         let vec1: Vec<u8> = self.buffer.drain(0..len2).collect();
         for (n, &x) in vec1.iter().enumerate() {
@@ -53,12 +62,6 @@ where
         }
 
         self.finished = self.buffer.is_empty();
-        log::trace!(
-            "buffer len {}, finished {}",
-            self.buffer.len(),
-            self.finished
-        );
-
         Ok(len2)
     }
 }
@@ -78,6 +81,9 @@ mod tests {
 
         let mut chunk = Chunk::new(producer1.into_iter());
         while let Ok(len) = chunk.read(&mut buf) {
+            if len < 1 {
+                break;
+            }
             println!("{} bytes, {:?}", len, buf);
             buf.fill(0);
         }
@@ -85,9 +91,7 @@ mod tests {
         let mut buf2 = vec![];
         let mut chunk1 = Chunk::new(producer2.into_iter());
         let result = chunk1.read(&mut buf2);
-        assert_eq!(result.is_err(), true);
-        let er = result.unwrap_err();
-        assert_eq!(er.kind(), ErrorKind::InvalidInput);
+        assert_eq!(result.unwrap(), 0);
     }
 }
 /*
