@@ -322,7 +322,7 @@ pub mod client {
 
             request
                 .send(chunk)
-                .map_err(|_| SimpleError::new("send chunk failed"))?;
+                .map_err(|e| SimpleError::new(format!("send chunk failed {}", e.to_string())))?;
 
             Ok(())
         }
