@@ -7,22 +7,22 @@ use url::Url;
 //Hash algorithm
 pub const AWS4_SHA256: &str = "AWS4-HMAC-SHA256";
 
-pub struct Sign<'a, T>
+pub struct Sign<T>
 where
     T: Headers,
 {
-    pub service: &'a str,
-    pub method: &'a str,
+    pub service: String,
+    pub method: String,
     pub url: Url,
-    pub datetime: &'a DateTime<Utc>,
-    pub region: &'a str,
-    pub access_key: &'a str,
-    pub secret_key: &'a str,
+    pub datetime: DateTime<Utc>,
+    pub region: String,
+    pub access_key: String,
+    pub secret_key: String,
     pub headers: T,
-    pub hash_request_payload: &'a str,
+    pub hash_request_payload: String,
 }
 
-impl<'a, T> Sign<'a, T>
+impl<T> Sign<T>
 where
     T: Headers,
 {
@@ -41,12 +41,12 @@ where
         let url: String = self.url.path().into();
 
         vec![
-            self.method.to_string(),
+            self.method.clone(),
             url,
             self.url.canonical_query_string(),
             self.headers.to_canonical(),
             self.signed_header_string(),
-            self.hash_request_payload.to_string(),
+            self.hash_request_payload.clone(),
         ]
         .join("\n")
     }

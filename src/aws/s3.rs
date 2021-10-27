@@ -8,16 +8,16 @@ pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 pub const STREAM_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 pub const AWS_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
-pub struct Holder<'a, T: Read, H: Headers> {
+pub struct Holder<T: Read, H: Headers> {
     pub buf_size: usize,
     pub reader: T,
     prev_signature: Option<String>,
-    signer: Sign<'a, H>,
+    signer: Sign<H>,
     state: State,
 }
 
-impl<'a, R: Read, H: Headers> Holder<'a, R, H> {
-    pub fn new(buf_size: usize, reader: R, signer: Sign<'a, H>) -> Self {
+impl<R: Read, H: Headers> Holder<R, H> {
+    pub fn new(buf_size: usize, reader: R, signer: Sign<H>) -> Self {
         Self {
             buf_size,
             reader,
@@ -34,7 +34,7 @@ enum State {
     Finished,
 }
 
-impl<'a, R: Read, H: Headers> Iterator for Holder<'a, R, H> {
+impl<R: Read, H: Headers> Iterator for Holder<R, H> {
     type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -96,7 +96,7 @@ pub trait S3Chunk {
 
 use ring::digest;
 
-impl<'a, T: Headers> S3Chunk for Sign<'a, T> {
+impl<T: Headers> S3Chunk for Sign<T> {
     fn chunk_string_to_sign(&self, prev_sig: String, data: Vec<u8>) -> String {
         let hash_empty = digest::digest(&digest::SHA256, b"");
         let hash_data = digest::digest(&digest::SHA256, data.as_slice());
@@ -161,15 +161,15 @@ mod tests {
         headers.insert("x-amz-date".to_string(), date_str.to_string());
 
         let signer = Sign {
-            service: "s3",
-            method: "PUT",
+            service: "s3".to_string(),
+            method: "PUT".to_string(),
             url: Url::parse(&full_url).expect("url parse failed"),
-            datetime: &date,
-            region: "us-east-1",
-            access_key: "AKIAIOSFODNN7EXAMPLE",
-            secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            datetime: date,
+            region: "us-east-1".to_string(),
+            access_key: "AKIAIOSFODNN7EXAMPLE".to_string(),
+            secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
             headers,
-            hash_request_payload: STREAM_PAYLOAD,
+            hash_request_payload: STREAM_PAYLOAD.to_string(),
         };
 
         let expected_seed_sig = "4f232c4386841ef735655705268965c44a0e4690baa4adea153f7db9fa80a0a9";
@@ -208,3 +208,38 @@ mod tests {
         );
     }
 }
+
+/*
+
+pub mod client {
+    use crate::{
+        aws::auth::Sign,
+        util::{self, Headers},
+    };
+    use std::collections::HashMap;
+    use std::io::Read;
+    use url::Url;
+
+    type MHeader = HashMap<String, String>;
+
+    pub struct Client {
+        region: String,
+    }
+
+    pub struct PutObjectInput<T: Read> {
+        pub bucket: String,
+        pub key: String,
+        pub data: T,
+    }
+
+    impl Client {
+        pub fn new(region: String) -> Self {
+            Client { region }
+        }
+
+        pub fn put_object<T: Read>(&self, input: PutObjectInput<T>) {}
+        pub fn put_object_stream<T: Read>(&self, input: PutObjectInput<T>) {}
+    }
+}
+
+*/

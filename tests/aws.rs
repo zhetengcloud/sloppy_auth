@@ -37,15 +37,15 @@ mod tests {
         headers.insert("Host".to_string(), host);
 
         let s3 = auth::Sign {
-            service: "s3",
-            method: "PUT",
+            service: "s3".to_string(),
+            method: "PUT".to_string(),
             url: Url::parse(&url2).expect("url parse failed"),
-            datetime: &date,
-            region: "us-east-1",
-            access_key: &access_key,
-            secret_key: &access_secret,
+            datetime: date,
+            region: "us-east-1".to_string(),
+            access_key: access_key,
+            secret_key: access_secret,
             headers: headers.clone(),
-            hash_request_payload: s3::UNSIGNED_PAYLOAD,
+            hash_request_payload: s3::UNSIGNED_PAYLOAD.to_string(),
         };
 
         let signature = s3.sign();
@@ -110,15 +110,15 @@ mod tests {
         );
 
         let signer = auth::Sign {
-            service: "s3",
-            method: "PUT",
+            service: "s3".to_string(),
+            method: "PUT".to_string(),
             url: Url::parse(&full_url).expect("url parse failed"),
-            datetime: &date,
-            region: "us-east-1",
-            access_key: &access_key,
-            secret_key: &access_secret,
+            datetime: date,
+            region: "us-east-1".to_string(),
+            access_key: access_key,
+            secret_key: access_secret,
             headers: headers.clone(),
-            hash_request_payload: s3::STREAM_PAYLOAD,
+            hash_request_payload: s3::STREAM_PAYLOAD.to_string(),
         };
 
         headers.insert("Authorization".to_string(), signer.sign());
