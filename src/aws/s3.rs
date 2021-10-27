@@ -209,15 +209,11 @@ mod tests {
     }
 }
 
-/*
-
 pub mod client {
-    use crate::{
-        aws::auth::Sign,
-        util::{self, Headers},
-    };
+    use super::*;
+    use crate::chunk;
     use std::collections::HashMap;
-    use std::io::Read;
+    use std::error::Error;
     use url::Url;
 
     type MHeader = HashMap<String, String>;
@@ -229,6 +225,7 @@ pub mod client {
     pub struct PutObjectInput<T: Read> {
         pub bucket: String,
         pub key: String,
+        pub content_len: String,
         pub data: T,
     }
 
@@ -237,9 +234,106 @@ pub mod client {
             Client { region }
         }
 
+        fn make_signer(
+            &self,
+            method: &str,
+            bucket: &str,
+            key: &str,
+            mode: Transfer,
+        ) -> (Sign<MHeader>, MHeader, String) {
+            let access_key = std::env::var("AWS_ACCESS_KEY_ID").expect("access key empty");
+            let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").expect("secret key empty");
+            let access_token = std::env::var("AWS_SESSION_TOKEN");
+
+            let date = chrono::Utc::now();
+
+            let host = "s3.amazonaws.com";
+            let host1 = format!("{}.{}", bucket, host);
+            let full_url = format!("http://{}/{}", host1, key);
+
+            let mut headers = HashMap::new();
+            headers.insert("Host".to_string(), host1);
+            headers.insert("x-amz-content-sha256".to_string(), mode.payload_hash());
+            headers.insert(
+                "x-amz-date".to_string(),
+                date.format(util::LONG_DATETIME).to_string(),
+            );
+            headers.extend(mode.extra_headers());
+            if let Ok(token) = access_token {
+                headers.insert("X-Amz-Security-Token".to_string(), token);
+            }
+
+            let signer = Sign {
+                service: "s3".to_string(),
+                method: method.to_string(),
+                url: Url::parse(&full_url).expect("url parse failed"),
+                datetime: date,
+                region: self.region.clone(),
+                access_key,
+                secret_key,
+                headers: headers.clone(),
+                hash_request_payload: mode.payload_hash(),
+            };
+
+            headers.insert("Authorization".to_string(), signer.sign());
+
+            (signer, headers, full_url)
+        }
+
         pub fn put_object<T: Read>(&self, input: PutObjectInput<T>) {}
-        pub fn put_object_stream<T: Read>(&self, input: PutObjectInput<T>) {}
+
+        pub fn put_object_stream<T: Read>(
+            &self,
+            chunk_kb: usize,
+            input: PutObjectInput<T>,
+        ) -> Result<(), Box<dyn Error>> {
+            let (signer, headers, full_url) = self.make_signer(
+                "PUT",
+                &input.bucket,
+                &input.key,
+                Transfer::Multiple(input.content_len),
+            );
+            let holder = Holder::new(chunk_kb * 1024, input.data, signer);
+            let chunk = chunk::Chunk::new(holder);
+            let mut request = ureq::put(&full_url);
+            for (k, v) in headers {
+                request = request.set(&k, &v);
+            }
+
+            request.send(chunk)?;
+
+            Ok(())
+        }
+    }
+
+    type ContentLength = String;
+    enum Transfer {
+        Single,
+        Multiple(ContentLength),
+    }
+
+    impl Transfer {
+        fn payload_hash(&self) -> String {
+            match self {
+                Self::Single => UNSIGNED_PAYLOAD.to_string(),
+                Self::Multiple(_) => STREAM_PAYLOAD.to_string(),
+            }
+        }
+
+        fn extra_headers(&self) -> MHeader {
+            let mut headers = HashMap::new();
+            match self {
+                Self::Single => (),
+                Self::Multiple(content_len) => {
+                    headers.insert("Content-Encoding".to_string(), "aws-chunked".to_string());
+                    headers.insert("Transfer-Encoding".to_string(), "chunked".to_string());
+                    headers.insert(
+                        "x-amz-decoded-content-length".to_string(),
+                        content_len.clone(),
+                    );
+                }
+            }
+            headers
+        }
     }
 }
-
-*/

@@ -141,4 +141,25 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn aws_s3_client_putobject_stream() {
+        u2::init_log();
+        let client = s3::client::Client::new("us-east-1".to_string());
+
+        let bytes_len = "20000";
+        let url1 = format!("http://httpbin.org/bytes/{}", bytes_len);
+
+        let response1 = ureq::get(&url1).call().expect("get url1 failed");
+
+        let input = s3::client::PutObjectInput {
+            bucket: "sls11".to_string(),
+            key: "test3".to_string(),
+            content_len: bytes_len.to_string(),
+            data: response1.into_reader(),
+        };
+        client
+            .put_object_stream(8 * 1024, input)
+            .expect("put object stream failed");
+    }
 }
