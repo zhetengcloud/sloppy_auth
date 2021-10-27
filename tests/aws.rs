@@ -177,4 +177,16 @@ mod tests {
         };
         client.put_object(input).expect("put object single failed");
     }
+
+    use s3::client::ChunkExt;
+    #[test]
+    fn aws_s3_client_save_remote() {
+        u2::init_log();
+        let client = s3::client::Client::new("us-east-1".to_string());
+
+        let url1 = format!("http://httpbin.org/bytes/{}", 50001);
+        client
+            .save_remote(&url1, 128, "sls11", "test5")
+            .expect("put object single failed");
+    }
 }

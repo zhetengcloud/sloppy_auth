@@ -212,8 +212,8 @@ mod tests {
 pub mod client {
     use super::*;
     use crate::chunk;
+    use simple_error::{SimpleError, SimpleResult};
     use std::collections::HashMap;
-    use std::error::Error;
     use url::Url;
 
     type MHeader = HashMap<String, String>;
@@ -280,10 +280,7 @@ pub mod client {
             (signer, headers, full_url)
         }
 
-        pub fn put_object<T: Read>(
-            &self,
-            mut input: PutObjectInput<T>,
-        ) -> Result<(), Box<dyn Error>> {
+        pub fn put_object<T: Read>(&self, mut input: PutObjectInput<T>) -> SimpleResult<()> {
             let (_, headers, full_url) =
                 self.make_signer("PUT", &input.bucket, &input.key, Transfer::Single);
 
@@ -293,9 +290,14 @@ pub mod client {
             }
 
             let mut buf = Vec::new();
-            input.data.read_to_end(&mut buf)?;
+            input
+                .data
+                .read_to_end(&mut buf)
+                .map_err(|_| SimpleError::new("input data read err"))?;
 
-            request.send_bytes(buf.as_slice())?;
+            request
+                .send_bytes(buf.as_slice())
+                .map_err(|_| SimpleError::new("send bytes failed"))?;
 
             Ok(())
         }
@@ -304,7 +306,7 @@ pub mod client {
             &self,
             chunk_kb: usize,
             input: PutObjectInput<T>,
-        ) -> Result<(), Box<dyn Error>> {
+        ) -> SimpleResult<()> {
             let (signer, headers, full_url) = self.make_signer(
                 "PUT",
                 &input.bucket,
@@ -318,7 +320,9 @@ pub mod client {
                 request = request.set(&k, &v);
             }
 
-            request.send(chunk)?;
+            request
+                .send(chunk)
+                .map_err(|_| SimpleError::new("send chunk failed"))?;
 
             Ok(())
         }
@@ -352,6 +356,41 @@ pub mod client {
                 }
             }
             headers
+        }
+    }
+
+    pub trait ChunkExt {
+        fn save_remote(
+            &self,
+            url: &str,
+            chunk_kb: usize,
+            bucket: &str,
+            key: &str,
+        ) -> SimpleResult<()>;
+    }
+
+    impl ChunkExt for Client {
+        fn save_remote(
+            &self,
+            url: &str,
+            chunk_kb: usize,
+            bucket: &str,
+            key: &str,
+        ) -> SimpleResult<()> {
+            let response1 = ureq::get(url).call().map_err(|e| {
+                SimpleError::new(format! {"Get remote resource failed: {}", e.to_string()})
+            })?;
+            let content_len = response1
+                .header("Content-Length")
+                .ok_or(SimpleError::new("Response has no content-length"))?;
+            let input = PutObjectInput {
+                bucket: bucket.to_string(),
+                key: key.to_string(),
+                content_len: content_len.to_string(),
+                data: response1.into_reader(),
+            };
+            self.put_object_stream(chunk_kb, input)?;
+            Ok(())
         }
     }
 }

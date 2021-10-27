@@ -1,6 +1,6 @@
 [package]
 name = "sloppy_auth"
-version = "2.1.0"
+version = "2.2.0"
 edition = "2018"
 publish = false
 
@@ -13,6 +13,7 @@ url = "^2.2"
 hex = "^0.4"
 log = "^0.4"
 ureq = "^2.2"
+simple-error = "^0.2"
 
 [dev-dependencies]
 flexi_logger = "^0.19"
