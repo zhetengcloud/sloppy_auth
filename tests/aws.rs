@@ -162,4 +162,19 @@ mod tests {
             .put_object_stream(8 * 1024, input)
             .expect("put object stream failed");
     }
+
+    #[test]
+    fn aws_s3_client_putobject_single() {
+        u2::init_log();
+        let client = s3::client::Client::new("us-east-1".to_string());
+
+        let data = "abcd";
+        let input = s3::client::PutObjectInput {
+            bucket: "sls11".to_string(),
+            key: "test4".to_string(),
+            content_len: data.len().to_string(),
+            data: data.as_bytes(),
+        };
+        client.put_object(input).expect("put object single failed");
+    }
 }

@@ -280,7 +280,25 @@ pub mod client {
             (signer, headers, full_url)
         }
 
-        pub fn put_object<T: Read>(&self, input: PutObjectInput<T>) {}
+        pub fn put_object<T: Read>(
+            &self,
+            mut input: PutObjectInput<T>,
+        ) -> Result<(), Box<dyn Error>> {
+            let (_, headers, full_url) =
+                self.make_signer("PUT", &input.bucket, &input.key, Transfer::Single);
+
+            let mut request = ureq::put(&full_url);
+            for (k, v) in headers {
+                request = request.set(&k, &v);
+            }
+
+            let mut buf = Vec::new();
+            input.data.read_to_end(&mut buf)?;
+
+            request.send_bytes(buf.as_slice())?;
+
+            Ok(())
+        }
 
         pub fn put_object_stream<T: Read>(
             &self,
