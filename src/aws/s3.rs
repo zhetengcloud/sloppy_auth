@@ -52,7 +52,7 @@ impl<R: Read, H: Headers> Iterator for Holder<R, H> {
                     match self.reader.read(&mut buf) {
                         Ok(len) => {
                             if len < 1 {
-                            log::trace!("Hoder read len<1 {}", len);
+                                log::debug!("Hoder read len<1 {}", len);
                                 self.state = State::Final;
                                 break;
                             } else {

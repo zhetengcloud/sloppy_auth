@@ -48,13 +48,6 @@ where
             }
         }
 
-        log::trace!(
-            "buf len {}, buffer {}, total {}",
-            buf.len(),
-            self.buffer.len(),
-            self.total_bytes
-        );
-
         let len2 = std::cmp::min(len1, self.buffer.len());
         let vec1: Vec<u8> = self.buffer.drain(0..len2).collect();
         for (n, &x) in vec1.iter().enumerate() {
@@ -62,6 +55,13 @@ where
         }
 
         self.finished = self.buffer.is_empty();
+        if self.finished {
+            log::debug!(
+                "Chunk data finished, buf {}, total {}",
+                buf.len(),
+                self.total_bytes
+            );
+        }
         Ok(len2)
     }
 }
