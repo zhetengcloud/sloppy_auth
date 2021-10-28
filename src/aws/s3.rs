@@ -320,9 +320,22 @@ pub mod client {
                 request = request.set(&k, &v);
             }
 
-            request
-                .send(chunk)
-                .map_err(|e| SimpleError::new(format!("send chunk failed {}", e.to_string())))?;
+            use ureq::Error;
+            match request.send(chunk) {
+                Ok(resp) => log::debug!("Response ok {}", resp.into_string().unwrap_or_default()),
+                Err(Error::Status(code, resp)) => {
+                    log::info!(
+                        "Error status {} {}",
+                        code,
+                        resp.into_string().unwrap_or_default()
+                    );
+                    Err(SimpleError::new(format!("Http failed {}", code)))?
+                }
+                Err(Error::Transport(trans)) => {
+                    log::info!("Transport failed {:?}", trans);
+                    Err(SimpleError::new(format!("Http failed {:?}", trans)))?
+                }
+            }
 
             Ok(())
         }

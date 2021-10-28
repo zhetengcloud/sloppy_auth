@@ -188,7 +188,7 @@ mod tests {
         let url1 = format!("http://httpbin.org/bytes/{}", 50001);
         let url1 = test_url.unwrap_or(url1);
         client
-            .save_remote(&url1, 30 * 1024, "dianliao", "dianliao1377009848")
+            .save_remote(&url1, 30 * 1024, "sls11", "test11")
             .expect("put object stream failed");
     }
 }
