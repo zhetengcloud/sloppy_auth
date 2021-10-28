@@ -52,6 +52,7 @@ impl<R: Read, H: Headers> Iterator for Holder<R, H> {
                     match self.reader.read(&mut buf) {
                         Ok(len) => {
                             if len < 1 {
+                            log::trace!("Hoder read len<1 {}", len);
                                 self.state = State::Final;
                                 break;
                             } else {
@@ -61,7 +62,8 @@ impl<R: Read, H: Headers> Iterator for Holder<R, H> {
                                 }
                             }
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            log::error!("Holder read error {:?}", e);
                             self.state = State::Final;
                             break;
                         }
@@ -76,12 +78,14 @@ impl<R: Read, H: Headers> Iterator for Holder<R, H> {
             State::Final => {
                 self.state = State::Finished;
                 if let Some(prev) = &self.prev_signature {
+                    log::info!("Holder final chunk prev signature {}", prev);
                     let data = vec![];
                     let new_sign = self.signer.chunk_sign(prev.clone(), data.clone());
                     self.prev_signature = Some(new_sign.clone());
                     let chunk = util::concat_chunk(data, new_sign);
                     Some(chunk)
                 } else {
+                    log::error!("Holder final chunk signature None");
                     None
                 }
             }
@@ -324,12 +328,12 @@ pub mod client {
             match request.send(chunk) {
                 Ok(resp) => log::debug!("Response ok {}", resp.into_string().unwrap_or_default()),
                 Err(Error::Status(code, resp)) => {
-                    log::info!(
-                        "Error status {} {}",
-                        code,
-                        resp.into_string().unwrap_or_default()
-                    );
-                    Err(SimpleError::new(format!("Http failed {}", code)))?
+                    let resp_body = resp.into_string().unwrap_or_default();
+                    log::info!("Error status {} {}", code, resp_body,);
+                    Err(SimpleError::new(format!(
+                        "Http failed {}, {}",
+                        code, resp_body
+                    )))?
                 }
                 Err(Error::Transport(trans)) => {
                     log::info!("Transport failed {:?}", trans);
