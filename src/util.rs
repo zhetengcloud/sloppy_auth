@@ -14,6 +14,7 @@ pub fn get_date_long() -> String {
     Utc::now().format(LONG_DATETIME).to_string()
 }
 
+#[cfg(feature = "aliyun")]
 pub fn md5(content: Vec<u8>) -> String {
     base64::encode(*md5::compute(&content))
 }
