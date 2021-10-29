@@ -213,6 +213,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "aws_client")]
 pub mod client {
     use super::*;
     use crate::chunk;

@@ -1,6 +1,6 @@
 [package]
 name = "sloppy_auth"
-version = "2.2.5"
+version = "2.3.0"
 edition = "2018"
 publish = false
 
@@ -19,8 +19,7 @@ simple-error = "^0.2"
 flexi_logger = "^0.19"
 
 [features]
-default = ["aws_auth"]
+default = ["aws"]
 aliyun = ["md5"]
-aws = ["aws_auth", "aws_client"]
-aws_auth = []
-aws_client = []
+aws = []
+aws_client = ["aws"]
